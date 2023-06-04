@@ -31,9 +31,11 @@
 
         <script src="imagination/Imagination.js"></script>
         <script src="imagination/gui.js"></script>
+        <script src="/socket.io/socket.io.js"></script>
 
         <script>
             (async function() {
+                let socket = io();
                 let contactMenu = document.getElementById("contact");
                 let textareaInput = document.getElementById("textareaInput");
                 let sendInput = document.getElementById("sender");
@@ -54,6 +56,7 @@
                 let currentContactInterval = null;
                 let receiver_pubkey = null;
                 let autoScroll = true;
+                let rehistory_blocked = false;
 
                 async function fingerprint(message) {
                     const encoder = new TextEncoder();
@@ -87,9 +90,7 @@
                     imports = await imagination.encryption.importKeyPair(pubkey_data, privkey_data);
                 } catch (e) { return cryptError(e); }
 
-                async function contactLoader() {
-                    let contacts = await fetch("/api/contacts");
-                    contacts = await contacts.json();
+                socket.on("contacts", function(contacts) {
                     for (let a = 0; a != contactAmount; a++) contactMenu.lastChild.remove();
                     contactAmount = 0;
                     let matchTest = activeContact?.innerText;
@@ -134,42 +135,10 @@
 
                             currentContact.innerText = contactEl.innerText;
 
-                            currentContactInterval = setInterval(async function() {
-                                let messages = await fetch("/api/messages?username=" + encodeURIComponent(contactEl.innerText));
-                                messages = await messages.json();
-                                let old_child = Array.prototype.map.call(messagesContainer.children, (a) => a);;
-                                for (let message of messages) {
-                                    let messageEl = document.createElement("div");
-                                    messageEl.className = "message";
-                                    if (message.sentBy != username) messageEl.classList.add("read");
-                                    else messageEl.classList.add("sent");
-                                    try {
-                                        messageEl.innerText = await imagination.encryption.decryptRSA(message.message, imports.privateKey);
-                                    } catch {
-                                        messageEl.innerText = message.message;
-                                        messageEl.innerHTML = messageEl.innerHTML + "<hr><em>Warning: The message may not be trusted because decryption failed.</em>";
-                                    }
-                                    messagesContainer.appendChild(messageEl);
-                                }
-                                while (old_child[0]) old_child.shift().remove();
-                                if (autoScroll) messagesContainer.scrollTop = messagesContainer.scrollTopMax || Number.MAX_SAFE_INTEGER;
-                                let isFriend = await fetch("/api/isFriend?username=" + encodeURIComponent(contactEl.innerText));
-                                try { isFriend = await isFriend.json(); } catch { isFriend = false; }
-                                if (isFriend) {
-                                    sendInput.disabled = false;
-                                    textareaInput.disabled = false;
-                                    if (textareaInput.notFriendDisabled) {
-                                        textareaInput.value = "";
-                                        textareaInput.notFriendDisabled = false;
-                                    }
-                                } else {
-                                    sendInput.disabled = true;
-                                    textareaInput.disabled = true;
-                                    textareaInput.notFriendDisabled = true;
-                                    textareaInput.value = "This user is not in your friend list. You can't communicate with them.";
-                                }
-                            }, 1000);
+                            socket.emit("messagesFromHistory", currentContact.innerText);
                         });
+                        socket.on("rehistory", () => socket.emit("messagesFromHistory", currentContact.innerText));
+                        
                         contactEl.addEventListener("contextmenu", async function(e) {
                             e.preventDefault();
                             e.stopImmediatePropagation();
@@ -188,34 +157,92 @@
                         if (matchTest == contactEl.innerText) contactEl.classList.add("active");
                         contactMenu.appendChild(contactEl);
                     }
-                }
+
+                    socket.on("history", async function(messages) {   
+                        if (rehistory_blocked) return;
+                        rehistory_blocked = true;
+                        let old_child = Array.prototype.map.call(messagesContainer.children, (a) => a);;
+                        for (let message of messages) {
+                            let messageEl = document.createElement("div");
+                            messageEl.className = "message";
+                            if (message.sentBy != username) messageEl.classList.add("read");
+                            else messageEl.classList.add("sent");
+                            try {
+                                messageEl.innerText = await imagination.encryption.decryptRSA(message.message, imports.privateKey);
+                            } catch {
+                                messageEl.innerText = message.message;
+                                messageEl.innerHTML = messageEl.innerHTML + "<hr><em>Warning: The message may not be trusted because decryption failed.</em>";
+                            }
+                            messagesContainer.appendChild(messageEl);
+                        }
+                        while (old_child[0]) old_child.shift().remove();
+                        if (autoScroll) messagesContainer.scrollTop = messagesContainer.scrollTopMax || Number.MAX_SAFE_INTEGER;
+                        let isFriend = await fetch("/api/isFriend?username=" + encodeURIComponent(currentContact.innerText));
+                        try { isFriend = await isFriend.json(); } catch { isFriend = false; }
+                        if (isFriend) {
+                            sendInput.disabled = false;
+                            textareaInput.disabled = false;
+                            if (textareaInput.notFriendDisabled) {
+                                textareaInput.value = "";
+                                textareaInput.notFriendDisabled = false;
+                            }
+                        } else {
+                            sendInput.disabled = true;
+                            textareaInput.disabled = true;
+                            textareaInput.notFriendDisabled = true;
+                            textareaInput.value = "This user is not in your friend list. You can't communicate with them.";
+                        }
+                        rehistory_blocked = false;
+                    });
+                    socket.on("newMessage", async function(message) {
+                        if (rehistory_blocked) return;
+                        rehistory_blocked = true;
+                        if (message.username != currentContact.innerText) return;
+                        let messageEl = document.createElement("div");
+                        messageEl.className = "message";
+                        if (message.sentBy != username) messageEl.classList.add("read");
+                        else messageEl.classList.add("sent");
+                        try {
+                            messageEl.innerText = await imagination.encryption.decryptRSA(message.message, imports.privateKey);
+                        } catch {
+                            messageEl.innerText = message.message;
+                            messageEl.innerHTML = messageEl.innerHTML + "<hr><em>Warning: The message may not be trusted because decryption failed.</em>";
+                        }
+                        messagesContainer.appendChild(messageEl);
+                        if (autoScroll) messagesContainer.scrollTop = messagesContainer.scrollTopMax || Number.MAX_SAFE_INTEGER;
+                        let isFriend = await fetch("/api/isFriend?username=" + encodeURIComponent(currentContact.innerText));
+                        try { isFriend = await isFriend.json(); } catch { isFriend = false; }
+                        if (isFriend) {
+                            sendInput.disabled = false;
+                            textareaInput.disabled = false;
+                            if (textareaInput.notFriendDisabled) {
+                                textareaInput.value = "";
+                                textareaInput.notFriendDisabled = false;
+                            }
+                        } else {
+                            sendInput.disabled = true;
+                            textareaInput.disabled = true;
+                            textareaInput.notFriendDisabled = true;
+                            textareaInput.value = "This user is not in your friend list. You can't communicate with them.";
+                        }
+                        rehistory_blocked = false;
+                    });
+                });
                 sendInput.addEventListener("click", async function(e) {
                     if (sendInput.disabled || textareaInput.disabled) return alert("Communication disabled!");
                     if (textareaInput.value.length >= 191) if (!confirm("Send the message? It's big and might fail to encrypt.")) return;
                     try {
-                        fetch("/api/message", {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json"
-                            },
-                            body: JSON.stringify({
-                                "message-myhist": await imagination.encryption.encryptRSA((new TextEncoder()).encode(textareaInput.value), imports.publicKey),
-                                "message-userhist": await imagination.encryption.encryptRSA((new TextEncoder()).encode(textareaInput.value), receiver_pubkey),
-                                username: currentContact.innerText
-                            })
+                        socket.emit("sendMessage", {
+                            "message-myhist": await imagination.encryption.encryptRSA((new TextEncoder()).encode(textareaInput.value), imports.publicKey),
+                            "message-userhist": await imagination.encryption.encryptRSA((new TextEncoder()).encode(textareaInput.value), receiver_pubkey),
+                            username: currentContact.innerText
                         });
                     } catch (e) {
                         console.error(e);
-                        fetch("/api/message", {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json"
-                            },
-                            body: JSON.stringify({
-                                "message-myhist": textareaInput.value,
-                                "message-userhist": textareaInput.value,
-                                username: currentContact.innerText
-                            })
+                        socket.emit("sendMessage", {
+                            "message-myhist": textareaInput.value,
+                            "message-userhist": textareaInput.value,
+                            username: currentContact.innerText
                         });
                         alert("Your message has failed to be encrypted. An unencrypted format was sent. It might be untrusted.");
                     }
@@ -230,8 +257,6 @@
                         if (!sendInput.disabled && !textareaInput.disabled) sendInput.click();
                     }
                 });
-                contactLoader();
-                setInterval(contactLoader, 1000);
             })();
         </script>
     </body>
