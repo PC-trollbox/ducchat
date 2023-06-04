@@ -457,6 +457,10 @@ app.get("/manageAccount/removeAccount", RequiredUserMiddleware, function (req, r
 	res.redirect("/");
 });
 
+app.get("/addons", function(req, res) {
+	res.render(getLocalePath("addons.jsembeds", req.headers["accept-language"]))
+});
+
 io.on("connection", async function (client) {
 	async function socketIOLogon() {
 		if (!client.handshake.headers.cookie) return client.disconnect();
@@ -536,6 +540,6 @@ io.on("connection", async function (client) {
     });
 });
 
-http.listen(3000, function () {
-	console.log("HTTP at :3000");
+http.listen(4598, function () {
+	console.log("HTTP at :4598");
 });

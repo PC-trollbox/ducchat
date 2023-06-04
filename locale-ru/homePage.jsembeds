@@ -9,11 +9,13 @@
     </head>
     <body>
         <div class="contacts" id="contact">
-            <a href="/logout" class="contact white">Выйти (вы <nodejs-embed>username</nodejs-embed>)</a>
+            <a href="/logout" class="opt-link white">Выйти (вы <nodejs-embed>username</nodejs-embed>)</a>
             <br>
-            <a href="/friendRequests" class="contact white">Запросы в друзья</a>
+            <a href="/friendRequests" class="opt-link white">Запросы в друзья</a>
             <br>
-            <a href="/manageAccount" class="contact white">Управление аккаунтом</a>
+            <a href="/manageAccount" class="opt-link white">Управление аккаунтом</a>
+            <br>
+            <a href="/addons" class="opt-link white">Дополнения</a>
             <hr>
         </div>
         <div class="messages">
@@ -35,7 +37,14 @@
 
         <script>
             (async function() {
-                let socket = io();
+                const AsyncFunction = (async () => {}).constructor;
+                let addons = JSON.parse(localStorage.getItem("addons") || "{}");
+                for (let addon in addons) if (addons[addon].runningIn?.includes("page-startup")) try {
+                            await new AsyncFunction(addons[addon].feature)("page-startup");
+                        } catch (e) {
+                            alert("Дополнение \"" + addon + "\" (версия " + addons[addon].release + ") не запустилось:\n" + e.toString() + "\n" + e.stack + "\nЗапустите менеджер дополнений и удалите это дополнение или примените патч.");
+                        }
+                let socket = null;
                 let contactMenu = document.getElementById("contact");
                 let textareaInput = document.getElementById("textareaInput");
                 let sendInput = document.getElementById("sender");
@@ -89,8 +98,14 @@
                 try {
                     imports = await imagination.encryption.importKeyPair(pubkey_data, privkey_data);
                 } catch (e) { return cryptError(e); }
+                socket = io();
 
-                socket.on("contacts", function(contacts) {
+                socket.on("contacts", async function(contacts) {
+                    for (let addon in addons) if (addons[addon].runningIn?.includes("before-contact-render")) try {
+                            await new AsyncFunction(addons[addon].feature)("before-contact-render", contacts);
+                        } catch (e) {
+                            alert("Дополнение \"" + addon + "\" (версия " + addons[addon].release + ") не запустилось:\n" + e.toString() + "\n" + e.stack + "\nЗапустите менеджер дополнений и удалите это дополнение или примените патч.");
+                        }
                     for (let a = 0; a != contactAmount; a++) contactMenu.lastChild.remove();
                     contactAmount = 0;
                     let matchTest = activeContact?.innerText;
@@ -249,9 +264,19 @@
                         }
                         rehistory_blocked = false;
                     });
+                    for (let addon in addons) if (addons[addon].runningIn?.includes("after-contact-render")) try {
+                            await new AsyncFunction(addons[addon].feature)("after-contact-render", contacts);
+                        } catch (e) {
+                            alert("Дополнение \"" + addon + "\" (версия " + addons[addon].release + ") не запустилось:\n" + e.toString() + "\n" + e.stack + "\nЗапустите менеджер дополнений и удалите это дополнение или примените патч.");
+                        }
                 });
                 sendInput.addEventListener("click", async function(e) {
                     if (sendInput.disabled || textareaInput.disabled) return alert("Общение отключено!");
+                    for (let addon in addons) if (addons[addon].runningIn?.includes("before-message-send")) try {
+                        await new AsyncFunction(addons[addon].feature)("before-message-send", textareaInput.value);
+                    } catch (e) {
+                        alert("Дополнение \"" + addon + "\" (версия " + addons[addon].release + ") не запустилось:\n" + e.toString() + "\n" + e.stack + "\nЗапустите менеджер дополнений и удалите это дополнение или примените патч.");
+                    }
                     if (textareaInput.value.length >= 191) if (!confirm("Отправить сообщение? Оно слишком большое и может не зашифроваться.")) return;
                     try {
                         socket.emit("sendMessage", {
@@ -267,6 +292,11 @@
                             username: currentContact.innerText
                         });
                         alert("Сообщение не удалось зашифровать. Оно было отправлено в нешифрованном формате. Ему могут не доверять.");
+                    }
+                    for (let addon in addons) if (addons[addon].runningIn?.includes("after-message-send")) try {
+                        await new AsyncFunction(addons[addon].feature)("after-message-send", textareaInput.value);
+                    } catch (e) {
+                        alert("Дополнение \"" + addon + "\" (версия " + addons[addon].release + ") не запустилось:\n" + e.toString() + "\n" + e.stack + "\nЗапустите менеджер дополнений и удалите это дополнение или примените патч.");
                     }
                     textareaInput.value = "";
                 });

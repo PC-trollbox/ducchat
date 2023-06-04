@@ -1,5 +1,5 @@
-const DUCCHAT_API = "http://localhost:3000/api/";
-const DUCCHAT_IMAGINATION = "http://localhost:3000/imagination/";
+const DUCCHAT_API = "http://localhost:4598/api/";
+const DUCCHAT_IMAGINATION = "http://localhost:4598/imagination/";
 const fs = require("fs");
 const crypto = require("crypto");
 let friend_requests_processing = false;
