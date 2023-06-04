@@ -225,9 +225,9 @@
                         if (message.sentBy != username) messageEl.classList.add("read");
                         else messageEl.classList.add("sent");
                         try {
-                            messageEl.innerText = parseMessage(await imagination.encryption.decryptRSA(message.message, imports.privateKey));
+                            messageEl.innerHTML = parseMarkdown(await imagination.encryption.decryptRSA(message.message, imports.privateKey));
                         } catch {
-                            messageEl.innerText = parseMessage(message.message);
+                            messageEl.innerHTML = parseMarkdown(message.message);
                             messageEl.innerHTML = messageEl.innerHTML + "<hr><em>Внимание: Сообщению можно не доверять из-за ошибки расшифровки.</em>";
                         }
                         messagesContainer.appendChild(messageEl);
