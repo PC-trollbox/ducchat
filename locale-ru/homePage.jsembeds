@@ -9,11 +9,11 @@
     </head>
     <body>
         <div class="contacts" id="contact">
-            <a href="/logout" class="contact white">Выйти (вы <nodejs-embed>username</nodejs-embed>)</a>
+            <a href="/logout" class="opt-link white">Выйти (вы <nodejs-embed>username</nodejs-embed>)</a>
             <br>
-            <a href="/friendRequests" class="contact white">Запросы в друзья</a>
+            <a href="/friendRequests" class="opt-link white">Запросы в друзья</a>
             <br>
-            <a href="/manageAccount" class="contact white">Управление аккаунтом</a>
+            <a href="/manageAccount" class="opt-link white">Управление аккаунтом</a>
             <hr>
         </div>
         <div class="messages">
