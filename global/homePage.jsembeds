@@ -111,8 +111,8 @@
                 }
                 const safe = htmlEscape(text);
                 return safe
-                    .replace(/(\\)?\[addon=((["'])(?:(?=(\\?))\2.)*?\1)\]([a-zA-Z0-9\/=]+)\[\/addon\]/g, (full, backslash, addon_name, _1, _2, base64) => {
-                        if (backslash) return full;
+                    .replace(/\[addon=([a-zA-Z0-9\. ]+)\]([a-zA-Z0-9\/=]+)\[\/addon\]/g, (full, addon_name, _1, _2, base64) => {
+                        //if (backslash) return full;
                         return `<button onclick="eval(atob(${JSON.stringify(base64).replace(/"/g, "'")}))">Install addon ${addon_name}</button>`;
                     })
                     .replace(/([^\\]|^)\*\*(.+?[^\\])\*\*/gs, "$1<b>$2</b>")
