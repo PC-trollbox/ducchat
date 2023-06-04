@@ -30,6 +30,9 @@ body {
     overflow-block: clip;
     overflow-inline: clip;
     max-height: 5%;
+    padding: 5px;
+    margin-top: 2px;
+    cursor: pointer;
 }
 
 a {
@@ -92,11 +95,13 @@ a {
     color: white;
     clear: both;
     overflow-wrap: break-word;
+    cursor: default;
 }
 
 .messagesContainer {
     overflow: scroll;
     height: 90%;
+    margin-top: 10px;
 }
 
 .textareaInput {
@@ -106,6 +111,14 @@ a {
     height: 5%;
     bottom: 0;
     resize: none;
+    background: #303030;
+    color: white;
+    border-radius: 5px;
+    border-color: #474747;
+}
+.textareainput::selection {
+	color: white;
+	background: white;
 }
 
 .sendInput {
@@ -114,4 +127,8 @@ a {
     right: 0;
     width: 9%;
     height: 6%;
+    background: #303030;
+    color: white;
+    border-color: #5c5c5c;
+    border-radius: 5px;
 }

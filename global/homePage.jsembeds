@@ -9,11 +9,11 @@
     </head>
     <body>
         <div class="contacts" id="contact">
-            <a href="/logout" class="contact white">Log out (you're <nodejs-embed>username</nodejs-embed>)</a>
+            <a href="/logout" class="opt-link white">Log out (you're <nodejs-embed>username</nodejs-embed>)</a>
             <br>
-            <a href="/friendRequests" class="contact white">Friend requests</a>
+            <a href="/friendRequests" class="opt-link white">Friend requests</a>
             <br>
-            <a href="/manageAccount" class="contact white">Manage account</a>
+            <a href="/manageAccount" class="opt-link white">Manage account</a>
             <hr>
         </div>
         <div class="messages">
