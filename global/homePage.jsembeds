@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>DucChat - Chat</title>
+        <link rel="stylesheet" href="ducchat.css"></link>
+    </head>
+    <body>
+        <div class="contacts" id="contact">
+            <a href="/logout" class="contact white">Log out (you're <nodejs-embed>username</nodejs-embed>)</a>
+            <br>
+            <a href="/friendRequests" class="contact white">Friend requests</a>
+            <br>
+            <a href="/manageAccount" class="contact white">Manage account</a>
+            <hr>
+        </div>
+        <div class="messages">
+            <div class="accessingContactContainer">
+                <div class="accessingContact" id="currentContact">DucChat</div>
+            </div>
+            <div class="messagesContainer" id="messagesContainer">
+                <div class="message read">Select a contact to start chatting.</div>
+            </div>
+            <div class="inputContainer">
+                <textarea class="textareaInput" placeholder="Type your message..." disabled id="textareaInput"></textarea>
+                <button class="sendInput" id="sender" disabled>Send</button>
+            </div>
+        </div>
+
+        <script src="imagination/Imagination.js"></script>
+        <script src="imagination/gui.js"></script>
+
+        <script>
+            (async function() {
+                let contactMenu = document.getElementById("contact");
+                let textareaInput = document.getElementById("textareaInput");
+                let sendInput = document.getElementById("sender");
+                let currentContact = document.getElementById("currentContact");
+                let messagesContainer = document.getElementById("messagesContainer");
+                let username = <nodejs-embed>usernam_js</nodejs-embed>;
+                contactMenu.id = "";
+                textareaInput.id = "";
+                sendInput.id = "";
+                currentContact.id = "";
+                messagesContainer.id = "";
+                textareaInput.value = "This user is not in your friend list. You can't communicate with them.";
+                textareaInput.notFriendDisabled = true;
+                textareaInput.disabled = true;
+                sendInput.disabled = true;
+                let activeContact = null;
+                let contactAmount = 0;
+                let currentContactInterval = null;
+                let receiver_pubkey = null;
+                let autoScroll = true;
+
+                async function fingerprint(message) {
+                    const encoder = new TextEncoder();
+                    const data = encoder.encode(message);
+                    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                    const hashB64 = imagination.encryption.arrayBufferToBase64(hashBuffer).replaceAll("=", "");
+                    return "sha256:" + hashB64;
+                }
+
+                function cryptError(error) {
+                    let errorMsg = "The key importing failed, because of:\n-----BEGIN ERROR-----\n" + error + "\n-----END ERROR-----\nTry again by refreshing the page.\nIf it fails, log out and log back in.";
+                    alert(errorMsg);
+                    let messageEl = document.createElement("div");
+                    messageEl.className = "message read";
+                    messageEl.innerText = errorMsg;
+                    messagesContainer.appendChild(messageEl);
+                    return messageEl.scrollIntoView();
+                }
+
+                let pubkey_data = localStorage.getItem("pubk");
+                let privkey_data = localStorage.getItem("privk");
+                if (!privkey_data || !pubkey_data) return cryptError("One or all of the keys are not located in the storage.")
+                if (privkey_data.startsWith("encrypted:")) {
+                    let password = await prompt("Enter your passphrase, then press Enter:");
+                    try {
+                        privkey_data = await imagination.encryption.decryptAES(JSON.parse(privkey_data.replace("encrypted:", "")), password);
+                    } catch {}
+                }
+                let imports;
+                try {
+                    imports = await imagination.encryption.importKeyPair(pubkey_data, privkey_data);
+                } catch (e) { return cryptError(e); }
+
+                async function contactLoader() {
+                    let contacts = await fetch("/api/contacts");
+                    contacts = await contacts.json();
+                    for (let a = 0; a != contactAmount; a++) contactMenu.lastChild.remove();
+                    contactAmount = 0;
+                    let matchTest = activeContact?.innerText;
+                    for (let contact of contacts) {
+                        contactAmount++;
+                        let contactEl = document.createElement("div");
+                        contactEl.className = "contact";
+                        contactEl.innerText = contact;
+                        contactEl.addEventListener("click", async function() {
+                            if (!localStorage.getItem("pubkeys_cache")) localStorage.setItem("pubkeys_cache", "{}");
+                            let new_receiver_pubkey = await fetch("/api/userPublicKey?username=" + encodeURIComponent(contact));
+                            receiver_pubkey = JSON.parse(localStorage.getItem("pubkeys_cache") || "{}")[contact];
+                            if (new_receiver_pubkey.ok) {
+                                new_receiver_pubkey = await new_receiver_pubkey.text();
+                                if (!receiver_pubkey) {
+                                    let confirmation = confirm("Import a public key of this contact?\nPublic key fingerprint: " + await fingerprint(new_receiver_pubkey) + "\nYour public key: " + await fingerprint(pubkey_data) + "\nThis key will be cached. If you don't accept, you might be unable to chat.");
+                                    if (confirmation) {
+                                        let pubkeys = JSON.parse(localStorage.getItem("pubkeys_cache") || "{}");
+                                        pubkeys[contact] = new_receiver_pubkey;
+                                        localStorage.setItem("pubkeys_cache", JSON.stringify(pubkeys));
+                                        receiver_pubkey = new_receiver_pubkey;
+                                    }
+                                } else if (receiver_pubkey != new_receiver_pubkey) {
+                                    let confirmation = confirm("Import a newer version of a public key of this contact?\nOld public key fingerprint: " + await fingerprint(receiver_pubkey) + "\nNew public key fingerprint: " + await fingerprint(new_receiver_pubkey) + "\nYour public key: " + await fingerprint(pubkey_data) + "\nThis new key will be cached. If you don't accept, your friend may be unable to see your messages.");
+                                    if (confirmation) {
+                                        let pubkeys = JSON.parse(localStorage.getItem("pubkeys_cache") || "{}");
+                                        pubkeys[contact] = new_receiver_pubkey;
+                                        localStorage.setItem("pubkeys_cache", JSON.stringify(pubkeys));
+                                        receiver_pubkey = new_receiver_pubkey;
+                                    }
+                                }
+                            }
+                            try {
+                                receiver_pubkey = (await imagination.encryption.importKeyPair(receiver_pubkey, privkey_data)).publicKey;
+                            } catch {}
+                            if (activeContact) {
+                                activeContact.classList.remove("active");
+                                clearInterval(currentContactInterval);
+                            }
+                            activeContact = contactEl;
+                            activeContact.classList.add("active");
+
+                            currentContact.innerText = contactEl.innerText;
+
+                            currentContactInterval = setInterval(async function() {
+                                let messages = await fetch("/api/messages?username=" + encodeURIComponent(contactEl.innerText));
+                                messages = await messages.json();
+                                let old_child = Array.prototype.map.call(messagesContainer.children, (a) => a);;
+                                for (let message of messages) {
+                                    let messageEl = document.createElement("div");
+                                    messageEl.className = "message";
+                                    if (message.sentBy != username) messageEl.classList.add("read");
+                                    else messageEl.classList.add("sent");
+                                    try {
+                                        messageEl.innerText = await imagination.encryption.decryptRSA(message.message, imports.privateKey);
+                                    } catch {
+                                        messageEl.innerText = message.message;
+                                        messageEl.innerHTML = messageEl.innerHTML + "<hr><em>Warning: The message may not be trusted because decryption failed.</em>";
+                                    }
+                                    messagesContainer.appendChild(messageEl);
+                                }
+                                while (old_child[0]) old_child.shift().remove();
+                                if (autoScroll) messagesContainer.scrollTop = messagesContainer.scrollTopMax || Number.MAX_SAFE_INTEGER;
+                                let isFriend = await fetch("/api/isFriend?username=" + encodeURIComponent(contactEl.innerText));
+                                try { isFriend = await isFriend.json(); } catch { isFriend = false; }
+                                if (isFriend) {
+                                    sendInput.disabled = false;
+                                    textareaInput.disabled = false;
+                                    if (textareaInput.notFriendDisabled) {
+                                        textareaInput.value = "";
+                                        textareaInput.notFriendDisabled = false;
+                                    }
+                                } else {
+                                    sendInput.disabled = true;
+                                    textareaInput.disabled = true;
+                                    textareaInput.notFriendDisabled = true;
+                                    textareaInput.value = "This user is not in your friend list. You can't communicate with them.";
+                                }
+                            }, 1000);
+                        });
+                        contactEl.addEventListener("contextmenu", async function(e) {
+                            e.preventDefault();
+                            e.stopImmediatePropagation();
+                            e.stopPropagation();
+                            let action = prompt("Select action:\n[1] Clear chat (will clear it on YOUR side only)\n[2] Delete chat (only works if you are no longer friends)\n[3] Privacy chat clean (erases from both sides)\n[4] Toggle auto-scroll (currently is " + (autoScroll ? "on" : "off") + ")\n\nInput the number or anything else to cancel, then press Enter.");
+                            if (action == "1") {
+                                await fetch("/api/clearChat?username=" + encodeURIComponent(contactEl.innerText));
+                            } else if (action == "2") {
+                                await fetch("/api/deleteChat?username=" + encodeURIComponent(contactEl.innerText));
+                            } else if (action == "3") {
+                                await fetch("/api/privacyClearChat?username=" + encodeURIComponent(contactEl.innerText));
+                            } else if (action == "4") {
+                                autoScroll = !autoScroll;
+                            }
+                        })
+                        if (matchTest == contactEl.innerText) contactEl.classList.add("active");
+                        contactMenu.appendChild(contactEl);
+                    }
+                }
+                sendInput.addEventListener("click", async function(e) {
+                    if (sendInput.disabled || textareaInput.disabled) return alert("Communication disabled!");
+                    if (textareaInput.value.length >= 191) if (!confirm("Send the message? It's big and might fail to encrypt.")) return;
+                    try {
+                        fetch("/api/message", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                "message-myhist": await imagination.encryption.encryptRSA((new TextEncoder()).encode(textareaInput.value), imports.publicKey),
+                                "message-userhist": await imagination.encryption.encryptRSA((new TextEncoder()).encode(textareaInput.value), receiver_pubkey),
+                                username: currentContact.innerText
+                            })
+                        });
+                    } catch (e) {
+                        console.error(e);
+                        fetch("/api/message", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                "message-myhist": textareaInput.value,
+                                "message-userhist": textareaInput.value,
+                                username: currentContact.innerText
+                            })
+                        });
+                        alert("Your message has failed to be encrypted. An unencrypted format was sent. It might be untrusted.");
+                    }
+                    textareaInput.value = "";
+                });
+                addEventListener("keydown", function(e) {
+                    textareaInput.focus();
+                    if (e.key == "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        e.stopPropagation();
+                        if (!sendInput.disabled && !textareaInput.disabled) sendInput.click();
+                    }
+                });
+                contactLoader();
+                setInterval(contactLoader, 1000);
+            })();
+        </script>
+    </body>
+</html>

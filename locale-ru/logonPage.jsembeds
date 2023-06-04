@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>DucChat - Добро пожаловать!</title>
+        <link rel="stylesheet" href="ducchat.css"></link>
+    </head>
+    <body>
+        <h1>DucChat</h1>
+        <hr>
+        <b>Необходимо войти.</b> Если у вас нет учётной записи, зарегестрируйтесь <a href="/register">вот здесь</a>. Процесс входа происходит с Безопасностью Imagination.
+        <br>
+        <br>
+        <div hidden id="keyless_auth_container">
+            <button onclick="imaginationAuthWithoutKey()" id="keyless_auth">Войти</button>
+            <hr>
+            <button onclick="openKeyed()">Другая пара ключей...</button>
+        </div>
+        <div hidden id="keyed_auth_container">
+            Загрузите файл под названием SEND_TO_SERVER.key: <input type="file" id="pubkey"> <br>
+            Загрузите файл под названием KEEP_SECRET.key: <input type="file" id="privkey"> <br>
+            <button onclick="imaginationAuth()" id="keyed_auth">Войти</button>
+        </div>
+
+        <div id="logon_message" hidden>
+            <b>Погодите</b>, вход всё ещё проходит. Вы будете автоматически перенаправлены на домашнюю страницу.
+        </div>
+
+        <script src="/imagination/Imagination.js"></script>
+        <script src="/imagination/gui.js"></script>
+        <script>
+            function openOverlay() {
+                pubkey.disabled = true;
+                privkey.disabled = true;
+                try { keyless_auth.disabled = true; } catch {}
+                keyed_auth.disabled = true;
+                logon_message.hidden = false;
+            }
+            function closeOverlayWithError(err) {
+                pubkey.disabled = false;
+                privkey.disabled = false;
+                try { keyless_auth.disabled = false; } catch {}
+                keyed_auth.disabled = false;
+                logon_message.hidden = true;
+                if (err) alert("Вход неудачен:\n" + err.toString());
+            }
+
+            function imaginationAuthWithoutKey() {
+                imagination.gui.imaginationAuthGUI([], openOverlay, prompt, closeOverlayWithError, localStorage);
+            }
+
+            function imaginationAuth() {
+                imagination.gui.imaginationAuthGUI([pubkey.files[0], privkey.files[0]], openOverlay, prompt, closeOverlayWithError, localStorage);
+            }
+
+            function openKeyed() {
+                keyless_auth_container.remove();
+                keyed_auth_container.hidden = false;
+            }
+
+            if (imagination.gui.isKeySaved()) keyless_auth_container.hidden = false;
+            else keyed_auth_container.hidden = false;
+        </script>
+    </body>
+</html>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>DucChat - Новичок?</title>
+        <link rel="stylesheet" href="ducchat.css"></link>
+    </head>
+    <body>
+        <h1>DucChat</h1>
+        <hr>
+        <b>Необходимо зарегестрироваться.</b> Если у вас есть учётная запись, войдите <a href="/">вот здесь</a>. Процесс регистрации происходит с Безопасностью Imagination.
+        <br>
+        <br>
+        Имя пользователя: <input id="userName" placeholder="Введите имя пользователя..." required></input>
+        <br>
+        <button onclick="useImagination()" id="imaginationGenerator">Зарегистрироваться с Безопасностью Imagination</button>
+
+        <div id="logon_message" hidden>
+            <b>Погодите</b>, процесс регистрации всё ещё проходит. Ты узнаешь, когда всё готово: попросят скачать два файла: KEEP_SECRET.key и SEND_TO_SERVER.key. Сохраните их!
+        </div>
+
+        <script src="/imagination/Imagination.js"></script>
+        <script src="/imagination/gui.js"></script>
+        <script>
+            function openOverlay() {
+                userName.disabled = true;
+                logon_message.hidden = false;
+                onbeforeunload = () => false;
+            }
+            function closeOverlayWithError(err) {
+                userName.disabled = false;
+                logon_message.hidden = true;
+                onbeforeunload = null;
+                if (err) alert("Регистрация не удалась:\n" + err.toString());
+            }
+
+
+            async function useImagination() {
+                if (!userName.value) return alert("Введите имя пользователя!");
+                let newkeypair = await imagination.gui.imaginationPubkeyFrontend(openOverlay, closeOverlayWithError, localStorage);
+                let fet = await fetch("/imagination/register", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        pubkey: newkeypair.publicKeyPem,
+                        username: userName.value,
+                    }),
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                });
+                openOverlay();
+                if (fet.ok) await imagination.gui.backupKeys([], prompt, false, localStorage);
+                closeOverlayWithError(fet.ok ? undefined : "Не удалось зарегистрироваться из-за ошибки " + fet.status + " (" + fet.statusText + ")\n" + (await fet.text()));
+            }
+        </script>
+    </body>
+</html>

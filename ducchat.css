@@ -1,0 +1,117 @@
+body {
+    background: black;
+    color: white;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.contacts {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: calc(15% + 32px);
+    height: calc(100% - 16px);
+    background: #60686c;
+    color: white;
+    padding: 8px;
+    overflow: scroll;
+}
+
+.contact.active {
+    background: #4d5356;
+}
+
+.contact:hover {
+    background: #4d5356;
+}
+
+.contact {
+    border-radius: 8px;
+    text-overflow: ellipsis;
+    overflow-block: clip;
+    overflow-inline: clip;
+    max-height: 5%;
+}
+
+a {
+    color: deepskyblue;
+}
+
+.white {
+    color: white;
+}
+
+.messages {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: calc(85% - 48px);
+    height: 100%;
+    background: #181a1b;
+    color: white;
+    overflow: hidden;
+}
+
+.accessingContact {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: calc(100% - 16px);
+    text-overflow: ellipsis;
+    overflow-block: clip;
+    overflow-inline: clip;
+    height: 2.5%;
+    padding: 8px;
+    text-align: center;
+    font-weight: bolder;
+    background: #4d5356;
+}
+
+.accessingContactContainer {
+    width: 100%;
+    height: 4%;
+    display: block;
+}
+
+.message.sent {
+    background: #0d81fc;
+    float: right;
+}
+
+.message.read {
+    float: left;
+    background: #60686c;
+}
+
+.message {
+    border-radius: 6px;
+    padding: 8px;
+    margin: 8px;
+    max-width: 25%;
+    display: block;
+    margin-bottom: 16px;
+    color: white;
+    clear: both;
+    overflow-wrap: break-word;
+}
+
+.messagesContainer {
+    overflow: scroll;
+    height: 90%;
+}
+
+.textareaInput {
+    position: absolute;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    width: 90%;
+    height: 5%;
+    bottom: 0;
+    resize: none;
+}
+
+.sendInput {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 9%;
+    height: 6%;
+}

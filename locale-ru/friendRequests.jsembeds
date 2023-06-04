@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>DucChat - Запросы в друзья</title>
+        <link rel="stylesheet" href="ducchat.css"></link>
+    </head>
+    <body>
+        <a href="/home">Назад в Чаты</a>
+        <h1>DucChat</h1>
+        <hr>
+        <h2>Список друзья и запросы</h2>
+        <h3>Друзья <em>(существующие)</em></h3>
+        <div id="existingFriends"></div>
+        <hr>
+        <h3>Подать запрос в друзья</h3>
+        <input id="username" type="text" placeholder="Имя пользователя"> <button id="requestBtn">Запросить</button>
+        <br>
+        Пароль друга: <code id="friendToken"></code>
+        <hr>
+        <h3>Применить пароль друга <em>(точный друг)</em></h3>
+        <input id="friendTokenInput" type="text" placeholder="Пароль друга" maxlength="8"> <button id="applyBtn">Применить</button>
+        <hr>
+        <h3>Подсказки <em>(пароли друга, вводите выше)</em></h3>
+        <div id="friendSuggestions"></div>
+
+        <script>
+            (async function() {
+                let existingFriends = document.getElementById("existingFriends");
+                let usernameField = document.getElementById("username");
+                let requestBtn = document.getElementById("requestBtn");
+                let friendToken = document.getElementById("friendToken");
+                let friendTokenInput = document.getElementById("friendTokenInput");
+                let applyBtn = document.getElementById("applyBtn");
+                let friendSuggestions = document.getElementById("friendSuggestions");
+                existingFriends.id = "";
+                usernameField.id = "";
+                requestBtn.id = "";
+                friendToken.id = "";
+                friendTokenInput.id = "";
+                applyBtn.id = "";
+                friendSuggestions.id = "";
+
+                let existingFriendsList = await fetch("/api/friends");
+                existingFriendsList = await existingFriendsList.json();
+                for (let friend of existingFriendsList) {
+                    let brEl = document.createElement("br");
+                    let existingFriendLbl = document.createElement("label");
+                    existingFriendLbl.innerText = friend;
+                    let existingFriendCodeWrapper = document.createElement("code");
+                    existingFriendCodeWrapper.appendChild(existingFriendLbl);
+                    existingFriendCodeWrapper.insertAdjacentHTML("beforeend", " ");
+                    let removeFriendBtn = document.createElement("button");
+                    removeFriendBtn.innerText = "x";
+                    removeFriendBtn.onclick = async function() {
+                        let result = await fetch("/api/removeFromFriends?username=" + encodeURIComponent(friend));
+                        if (result.ok) {
+                            existingFriendLbl.remove();
+                            existingFriendCodeWrapper.remove();
+                            removeFriendBtn.remove();
+                            brEl.remove();
+                        } else alert("Ошибка:\n" + await result.text());
+                    }
+                    existingFriends.appendChild(existingFriendCodeWrapper);
+                    existingFriends.appendChild(removeFriendBtn);
+                    existingFriends.appendChild(brEl);
+                }
+
+                requestBtn.onclick = async function() {
+                    let result = await fetch("/api/addToFriends?username=" + encodeURIComponent(usernameField.value));
+                    if (result.ok) friendToken.innerText = (await result.json()).friendToken;
+                    else alert("Ошибка:\n" + await result.text());
+                }
+
+                applyBtn.onclick = async function() {
+                    let result = await fetch("/api/addToFriends?friendToken=" + encodeURIComponent(friendTokenInput.value));
+                    if (result.ok) location.replace(location.href)
+                    else alert("Ошибка:\n" + await result.text());
+                }
+
+                let suggestedFriendsList = await fetch("/api/friendTokens");
+                suggestedFriendsList = await suggestedFriendsList.json();
+                for (let friend in suggestedFriendsList) {
+                    let brEl = document.createElement("br");
+                    let suggestedFriendLbl = document.createElement("label");
+                    suggestedFriendLbl.innerText = friend + " (от " + suggestedFriendsList[friend].from + ")";
+                    friendSuggestions.appendChild(suggestedFriendLbl);
+                    friendSuggestions.appendChild(brEl);
+                }
+            })();
+        </script>
+    </body>
+</html>

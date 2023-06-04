@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>DucChat - Управление учётной записью</title>
+        <link rel="stylesheet" href="ducchat.css"></link>
+    </head>
+    <body>
+        <h1>DucChat</h1>
+        <hr>
+        <h2>Управление настройками учётной записи</h2>
+        <h3>Сделать недопустимым токен настроек <em>(назад в Чаты)</em></h3>
+        <form action="/manageAccount/goBackToChat">
+            <input type="hidden" name="security_token" value="<nodejs-embed>security_token</nodejs-embed>">
+            <button>Назад в Чаты</button>
+        </form>
+        <hr>
+        <h3>Сменить пару ключей</h3>
+        <button onclick="changeKeypair()">Сменить пару ключей</button>
+        <hr>
+        <h3>Экспортировать пару ключей</h3>
+        <button onclick="imagination.gui.backupKeys([], prompt, confirm('Расшифровать пару ключей?'))">Экспортировать пару ключей</button>
+        <hr>
+        <h3>Зашифровать пару ключей</h3>
+        <button onclick="imagination.gui.imaginationSavedEncrypt([], ()=>{}, prompt, confirm, (a)=>a?alert(a):undefined)">Зашифровать пару ключей</button>
+        <hr>
+        <h3>Сменить секрет</h3>
+        <em>Все устройства выйдут из системы. Также вызывается при смене пары ключей.</em>
+        <form action="/manageAccount/changeSecret">
+            <input type="hidden" name="security_token" value="<nodejs-embed>security_token</nodejs-embed>">
+            <button>Сменить секрет</button>
+        </form>
+        <hr>
+        <h3>Удалить учётную запись</h3>
+        <em>Удаляет друзей и сообщения из вашего аккаунта, затем делает имя пользователя доступным для регистрации.</em>
+        <form action="/manageAccount/removeAccount">
+            <input type="hidden" name="security_token" value="<nodejs-embed>security_token</nodejs-embed>">
+            <button onclick="return confirm('Вы уверены?')">Удалить учётную запись</button>
+        </form>
+
+        <script src="imagination/Imagination.js"></script>
+        <script src="imagination/gui.js"></script>
+
+        <script>
+            async function changeKeypair() {
+                let newkeypair = await imagination.gui.imaginationPubkeyFrontend(() => {}, () => {}, localStorage);
+                let fet = await fetch("/manageAccount/changeKeypair?pubkey=" + encodeURIComponent(newkeypair.publicKeyPem) + "&security_token=<nodejs-embed>security_token</nodejs-embed>");
+                if (fet.ok) {
+                    await imagination.gui.backupKeys([], prompt, false, localStorage);
+                    alert("Сохраните ключи, затем нажмите Ввод.");
+                    location.reload();
+                } else alert("Не удалось сменить пару ключей: " + fet.status + " (" + fet.statusText + ")\n" + (await fet.text()));
+            }
+
+            async function handleSecurityMeasures(e) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                e.stopPropagation();
+                location.href = "/manageAccount/goBackToChat?security_token=<nodejs-embed>security_token</nodejs-embed>";
+            }
+
+            setTimeout(() => handleSecurityMeasures({ preventDefault: () => {}, stopImmediatePropagation: () => {}, stopPropagation: () => {} }), 900000);
+
+            onpagehide = handleSecurityMeasures;
+        </script>
+    </body>
+</html>

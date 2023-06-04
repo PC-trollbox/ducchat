@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>DucChat - Управление аккаунтом (переаутентификация)</title>
+        <link rel="stylesheet" href="ducchat.css"></link>
+    </head>
+    <body>
+        <a href="/home">Назад в Чаты</a>
+        <h1>DucChat</h1>
+        <hr>
+        <h2>Управление настройками учётной записи</h2>
+        <h3>Требуется Аутентификация</h3>
+        Пожалуйста, подождите...
+
+        <script src="/imagination/Imagination.js"></script>
+        <script src="/imagination/gui.js"></script>
+        <script>
+            (async function() {
+                let pubkey_data = localStorage.getItem("pubk");
+                let privkey_data = localStorage.getItem("privk");
+                if (!privkey_data || !pubkey_data) return location.href = "/home";
+                if (privkey_data.startsWith("encrypted:")) {
+                    let password = await prompt("Введите вашу парольную фразу, затем нажмите Ввод:");
+                    try {
+                        privkey_data = await imagination.encryption.decryptAES(JSON.parse(privkey_data.replace("encrypted:", "")), password);
+                    } catch {}
+                }
+                let imports;
+                try {
+                    imports = await imagination.encryption.importKeyPair(pubkey_data, privkey_data);
+                } catch { return location.href = "/home"; }
+                let rec_tok = await fetch("/manageAccountSecurityToken?pubkey=" + encodeURIComponent(pubkey_data));
+                rec_tok = await rec_tok.text();
+                try {
+                    rec_tok = await imagination.encryption.decryptRSA(rec_tok, imports.privateKey);
+                } catch { return location.href = "/home"; }
+                location.href = "/manageAccount?security_token=" + encodeURIComponent(rec_tok);
+            })();
+        </script>
+    </body>
+</html>

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>DucChat - Awkward Situation</title>
+        <link rel="stylesheet" href="ducchat.css"></link>
+    </head>
+    <body>
+        <h1>DucChat</h1>
+        <hr>
+        <h2>This feature was not implemented!</h2>
+        This feature was not implemented yet. Try the <a href="/">home page</a> first.
+    </body>
+</html>
