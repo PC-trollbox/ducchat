@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>DucChat - Addons</title>
+        <link rel="stylesheet" href="ducchat.css"></link>
+    </head>
+    <body>
+        <a href="/home">Back to Chat</a>
+        <h1>DucChat Addon Installation Page</h1>
+        <button id="install_addons">Install addons</button> <button id="remove_addons">Remove addons</button>
+        <br>
+        <b>Addons:</b> <code id="addon_list"></code>
+
+        <script>
+            (async function() {
+                const AsyncFunction = (async () => {}).constructor;
+                let install_addons = document.getElementById("install_addons");
+                let remove_addons = document.getElementById("remove_addons");
+                let addon_list = document.getElementById("addon_list");
+                install_addons.id = "";
+                remove_addons.id = "";
+                addon_list.id = "";
+                if (!localStorage.getItem("addons")) localStorage.setItem("addons", "{}");
+                let addons = JSON.parse(localStorage.getItem("addons") || "{}");
+                addon_list.innerText = Object.keys(addons).join(" ");
+
+                remove_addons.addEventListener("click", function() {
+                    delete addons[prompt("Input the name of addon that you want removed, then press Enter:")];
+                    localStorage.setItem("addons", JSON.stringify(addons));
+                    addon_list.innerText = Object.keys(addons).join(" ");
+                });
+
+                install_addons.addEventListener("click", async function() {
+                    let autoconfig = prompt("Enter the configuration script (please do not input random untrusted code), then press Enter.");
+                    autoconfig = await new AsyncFunction(autoconfig)();
+                    alert("Installed \"" + autoconfig.name + "\" version \"" + autoconfig.release + "\".\nPlaces that this extension will be run on: " + autoconfig.runningIn.join(", ") + ".");
+                    addons[autoconfig.name] = autoconfig;
+                    localStorage.setItem("addons", JSON.stringify(addons));
+                    addon_list.innerText = Object.keys(addons).join(" ");
+                });
+            })();
+        </script>
+    </body>
+</html>

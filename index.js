@@ -457,6 +457,10 @@ app.get("/manageAccount/removeAccount", RequiredUserMiddleware, function (req, r
 	res.redirect("/");
 });
 
+app.get("/addons", function(req, res) {
+	res.render(getLocalePath("addons.jsembeds", req.headers["accept-language"]))
+});
+
 io.on("connection", async function (client) {
 	async function socketIOLogon() {
 		if (!client.handshake.headers.cookie) return client.disconnect();
