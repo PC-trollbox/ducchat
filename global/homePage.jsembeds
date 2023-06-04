@@ -35,7 +35,7 @@
 
         <script>
             (async function() {
-                let socket = io();
+                let socket = null;
                 let contactMenu = document.getElementById("contact");
                 let textareaInput = document.getElementById("textareaInput");
                 let sendInput = document.getElementById("sender");
@@ -89,6 +89,7 @@
                 try {
                     imports = await imagination.encryption.importKeyPair(pubkey_data, privkey_data);
                 } catch (e) { return cryptError(e); }
+                socket = io();
 
                 socket.on("contacts", function(contacts) {
                     for (let a = 0; a != contactAmount; a++) contactMenu.lastChild.remove();
