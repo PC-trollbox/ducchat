@@ -493,12 +493,14 @@ io.on("connection", async function (client) {
                 locale: String(client.handshake.headers["accept-language"]).split(";")[0].split(",")[0].split("-")[0].split("_")[0].toLowerCase()
             });
 	});
-    client.on("messagesFromHistory", async function(username) {
-        if (!username) return client.disconnect();
-        if (typeof username !== "string") return client.disconnect();
+    client.on("messagesFromHistory", async function(settingObj) {
+        if (!settingObj) return client.disconnect();
+        if (typeof settingObj !== "object") return client.disconnect();
         let logon = await socketIOLogon();
 		if (!logon) return client.disconnect();
-        client.emit("history", logon.object.messages.filter(a => a.username == username));
+		let msgs = logon.object.messages.filter(a => a.username == settingObj.username);
+		if (settingObj.limit) msgs = msgs.slice(settingObj.limit * -1)
+        client.emit("history", msgs);
     });
     client.on("contacts", function() {
         client.emit("contacts", logon.object.recentlyChatted);

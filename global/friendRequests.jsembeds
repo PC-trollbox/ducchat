@@ -53,7 +53,7 @@
                     existingFriendCodeWrapper.appendChild(existingFriendLbl);
                     existingFriendCodeWrapper.insertAdjacentHTML("beforeend", " ");
                     let removeFriendBtn = document.createElement("button");
-                    removeFriendBtn.innerText = "x";
+                    removeFriendBtn.innerText = "⨯";
                     removeFriendBtn.onclick = async function() {
                         let result = await fetch("/api/removeFromFriends?username=" + encodeURIComponent(friend));
                         if (result.ok) {

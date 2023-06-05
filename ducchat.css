@@ -135,11 +135,10 @@ a {
 
 .commit_info {
     position: fixed;
-    top: 8px;
-    right: 8px;
+    top: .15em;
+    right: .15rem;
     text-align: right;
-    font-family: monospace;
     color: white;
+    font-size: .5em;
     z-index: 1;
-    opacity: 75%;
 }

@@ -21,7 +21,7 @@
             <a href="/addons" class="opt-link white">Add-ons</a>
             <hr>
         </div>
-        <div class="messages">
+        <div class="messages" id="seeingMessages">
             <div class="accessingContactContainer">
                 <div class="accessingContact" id="currentContact">DucChat</div>
             </div>
@@ -33,6 +33,7 @@
                 <button class="sendInput" id="sender" disabled>Send</button>
             </div>
         </div>
+        <iframe class="messages" id="settingShower" style="display: none;"></iframe>
 
         <script src="imagination/Imagination.js"></script>
         <script src="imagination/gui.js"></script>
@@ -54,6 +55,8 @@
                 let currentContact = document.getElementById("currentContact");
                 let messagesContainer = document.getElementById("messagesContainer");
                 let commitLbl = document.getElementById("commit");
+                let seeingMessages = document.getElementById("seeingMessages");
+                let settingShower = document.getElementById("settingShower");
                 let username = <nodejs-embed>usernam_js</nodejs-embed>;
                 contactMenu.id = "";
                 textareaInput.id = "";
@@ -61,6 +64,8 @@
                 currentContact.id = "";
                 messagesContainer.id = "";
                 commitLbl.id = "";
+                seeingMessages.id = "";
+                settingShower.id = "";
                 textareaInput.value = "This user is not in your friend list. You can't communicate with them.";
                 textareaInput.notFriendDisabled = true;
                 textareaInput.disabled = true;
@@ -123,6 +128,50 @@
                     .replace(/\\\\/g, "\\");
             }
             
+            document.querySelectorAll("a").forEach(function(b) {
+                if (b.href.endsWith("/logout")) return;
+                b.onclick = function me(e) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    seeingMessages.style.display = "none";
+                    settingShower.style.display = "";
+                    settingShower.src = b.href;
+                    b.classList.add("active");
+                    settingShower.onload = function() {
+                        let linkHandler = function(a) {
+                            a.onclick = function(ae) {
+                                ae.preventDefault();
+                                ae.stopImmediatePropagation();
+                                seeingMessages.style.display = "";
+                                settingShower.style.display = "none";
+                                b.onclick = me;
+                            }
+                        };
+                        let backup = settingShower.contentWindow.onpagehide;
+                        settingShower.contentWindow.onpagehide = null;
+                        settingShower.contentWindow.document.querySelectorAll("a[href=\\/home]").forEach(linkHandler);
+                        settingShower.contentWindow.document.querySelectorAll("a[href=\\/]").forEach(linkHandler);
+                        settingShower.contentWindow.document.querySelectorAll("form[action=\\/manageAccount\\/goBackToChat]").forEach(function(c) {
+                            c.onclick = function (ae) {
+                                backup({ preventDefault: () => {}, stopImmediatePropagation: () => {}, stopPropagation: () => {} });
+                                ae.preventDefault();
+                                ae.stopImmediatePropagation();
+                                seeingMessages.style.display = "";
+                                settingShower.style.display = "none";
+                                b.onclick = me;
+                            }
+                        });
+                    }
+                    b.onclick = function (e) {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        seeingMessages.style.display = "";
+                        settingShower.style.display = "none";
+                        b.onclick = me;
+                    }
+                }
+            });
+
                 socket.on("contacts", async function (contacts) {
                     for (let addon in addons) if (addons[addon].runningIn?.includes("before-contact-render")) try {
                             await new AsyncFunction(addons[addon].feature)("before-contact-render", contacts);
@@ -173,7 +222,10 @@
 
                             currentContact.innerText = contactEl.innerText;
 
-                            socket.emit("messagesFromHistory", currentContact.innerText);
+                            socket.emit("messagesFromHistory", {
+                                username: currentContact.innerText,
+                                limit: 50
+                            });
                         });
 
                         contactEl.addEventListener("contextmenu", async function (e) {
@@ -281,7 +333,10 @@
                     rehistory_blocked = false;
                 });
 
-                socket.on("rehistory", () => socket.emit("messagesFromHistory", currentContact.innerText));
+                socket.on("rehistory", () => socket.emit("messagesFromHistory", {
+                                username: currentContact.innerText,
+                                limit: 50
+                            }));
 
                 sendInput.addEventListener("click", async function (e) {
                     if (sendInput.disabled || textareaInput.disabled) return alert("Communication disabled!");
