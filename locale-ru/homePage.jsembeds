@@ -75,7 +75,6 @@
                 let currentContactInterval = null;
                 let receiver_pubkey = null;
                 let autoScroll = true;
-                let rehistory_blocked = false;
 
                 let commit = await fetch("/api/commitVersion");
                 commit = await commit.text();
@@ -265,8 +264,6 @@
                 });
 
                 socket.on("history", async function (messages) {
-                    if (rehistory_blocked) return;
-                    rehistory_blocked = true;
                     let old_child = Array.prototype.map.call(messagesContainer.children, (a) => a);;
                     for (let message of messages) {
                         let messageEl = document.createElement("div");
@@ -302,11 +299,8 @@
                         textareaInput.notFriendDisabled = true;
                         textareaInput.value = "Пользователь - не ваш друг. Общение отключено.";
                     }
-                    rehistory_blocked = false;
                 });
                 socket.on("newMessage", async function (message) {
-                    if (rehistory_blocked) return;
-                    rehistory_blocked = true;
                     if (message.username != currentContact.innerText) return;
                     let messageEl = document.createElement("div");
                     messageEl.className = "message";
@@ -339,7 +333,6 @@
                         textareaInput.notFriendDisabled = true;
                         textareaInput.value = "Пользователь - не ваш друг. Общение отключено.";
                     }
-                    rehistory_blocked = false;
                 });
 
                 socket.on("rehistory", () => socket.emit("messagesFromHistory", {
