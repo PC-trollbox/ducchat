@@ -1,7 +1,9 @@
-const DUCCHAT_API = "http://localhost:4598/api/";
-const DUCCHAT_IMAGINATION = "http://localhost:4598/imagination/";
+const DUCCHAT_BASE = "http://localhost:4598/";
+const DUCCHAT_API = DUCCHAT_BASE + "api/";
+const DUCCHAT_IMAGINATION = DUCCHAT_BASE + "imagination/";
 const fs = require("fs");
 const crypto = require("crypto");
+const io = require("socket.io-client");
 let friend_requests_processing = false;
 
 let localized = {
@@ -44,30 +46,56 @@ let localized = {
     }, encryptedSecret).toString();
     console.log("Secret decrypted");
 
+    let socketConnection = io(DUCCHAT_BASE, {
+        transportOptions: {
+            polling: {
+                extraHeaders: {
+                    'Cookie': "token=" + secret
+                }
+            }
+        }
+    });
+
+    socketConnection.on("newMessage", async function(newMessage) {
+        try {
+            newMessage.message = crypto.privateDecrypt({
+                key: fs.readFileSync(__dirname + "/KEEP_SECRET.key"),
+                padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+                oaepHash: 'sha256'
+            }, Buffer.from(newMessage.message, "base64")).toString();
+        } catch {
+            await sendMessage(socketConnection, localized.handleLocale(newMessage).untrustedMessage, newMessage.username, secret, false);
+        }
+        if (newMessage.message == "stop") {
+            await sendMessage(socketConnection, localized.handleLocale(newMessage).goodBye, newMessage.username, secret);
+            await removeFromFriends(newMessage.username, secret);
+        } else if (newMessage.message == "help") {
+            await sendMessage(socketConnection, localized.handleLocale(newMessage).helpMessage, newMessage.username, secret);
+        } else if (newMessage.message == "ping") {
+            await sendMessage(socketConnection, "Pong!", newMessage.username, secret);
+        } else if (newMessage.message == "id") {
+            await sendMessage(socketConnection, localized.handleLocale(newMessage).itsValue.replace("%s", newMessage.senderID), newMessage.username, secret);
+        }
+    })
+
     setInterval(async function() {
         if (!friend_requests_processing) {
             friend_requests_processing = true;
-            await acceptAllFriendTokens(secret);
-            await handleNewMessages(secret);
+            await acceptAllFriendTokens(socketConnection, secret);
             friend_requests_processing = false;
         }
     }, 1000);
 })();
 
-async function sendMessage(message_txt, target, secret, encrypted = true) {
-    let pubkey_request = await fetch(DUCCHAT_API + "userPublicKey?username=" + encodeURIComponent(target), {
-        headers: {
-            "Cookie": "token=" + secret,
-        }
-    });
-    pubkey_request = await pubkey_request.text();
-    let message = await fetch(DUCCHAT_API + "message", {
-        headers: {
-            "Cookie": "token=" + secret,
-            "Content-Type": "application/json"
-        },
-        method: "POST",
-        body: JSON.stringify({
+function sendMessage(socket, message_txt, target, secret, encrypted = true) {
+    return new Promise(async function(resolve, reject) {
+        let pubkey_request = await fetch(DUCCHAT_API + "userPublicKey?username=" + encodeURIComponent(target), {
+            headers: {
+                "Cookie": "token=" + secret,
+            }
+        });
+        pubkey_request = await pubkey_request.text();
+        socket.emit("sendMessage", {
             "message-myhist": encrypted ? crypto.publicEncrypt({
                 key: fs.readFileSync(__dirname + "/SEND_TO_SERVER.key"),
                 padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
@@ -79,14 +107,23 @@ async function sendMessage(message_txt, target, secret, encrypted = true) {
                 oaepHash: 'sha256'
             }, message_txt).toString("base64") : message_txt,
             username: target
-        })
+        });
+
+        let eRecieve = false;
+        socket.once("sendFail", function (sendFailData) {
+            if (eRecieve) return;
+            eRecieve = true;
+            reject(new Error("Ducchat error: " + sendFailData));
+        });
+        socket.once("newMessage", function (message) {
+            if (eRecieve) return;
+            eRecieve = true;
+            resolve(message);
+        });
     });
-    let server_reply = await message.text();
-    if (!message.ok) throw new Error("Ducchat error: " + server_reply + " (HTTP " + message.status + " " + message.statusText + ")");
-    return server_reply;
 }
 
-async function acceptAllFriendTokens(secret) {
+async function acceptAllFriendTokens(socket, secret) {
     let friend_tokens = await fetch(DUCCHAT_API + "friendTokens", {
         headers: {
             "Cookie": "token=" + secret,
@@ -102,7 +139,7 @@ async function acceptAllFriendTokens(secret) {
             }
         });
         await clearChat(friend_tokens[friend_token].from, secret, true);
-        await sendMessage(localized.en.startMessage, friend_tokens[friend_token].from, secret);
+        await sendMessage(socket, localized.en.startMessage, friend_tokens[friend_token].from, secret);
     }
     return true;
 }
@@ -118,48 +155,6 @@ async function clearChat(username, secret, privacy = false) {
                 "Cookie": "token=" + secret,
             }
         });
-}
-
-async function handleNewMessages(secret) {
-    let contacts = await fetch(DUCCHAT_API + "contacts", {
-        headers: {
-            "Cookie": "token=" + secret,
-        }
-    });
-    try {
-        contacts = await contacts.json();
-    } catch { return false; }
-    for (let contact of contacts) {
-        let recent_messages = await fetch(DUCCHAT_API + "messages?username=" + encodeURIComponent(contact) + "&limit=1", {
-            headers: {
-                "Cookie": "token=" + secret,
-            }
-        });
-        try { recent_messages = await recent_messages.json(); } catch { continue }
-        recent_messages = recent_messages[0];
-        if (!recent_messages) continue
-        if (recent_messages.sentBy != recent_messages.username) continue;
-        try {
-            recent_messages.message = crypto.privateDecrypt({
-                key: fs.readFileSync(__dirname + "/KEEP_SECRET.key"),
-                padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-                oaepHash: 'sha256'
-            }, Buffer.from(recent_messages.message, "base64")).toString();
-        } catch {
-            await sendMessage(localized.handleLocale(recent_messages).untrustedMessage, contact, secret, false);
-            continue;
-        }
-        if (recent_messages.message == "stop") {
-            await sendMessage(localized.handleLocale(recent_messages).goodBye, contact, secret);
-            await removeFromFriends(contact, secret);
-        } else if (recent_messages.message == "help") {
-            await sendMessage(localized.handleLocale(recent_messages).helpMessage, contact, secret);
-        } else if (recent_messages.message == "ping") {
-            await sendMessage("Pong!", contact, secret);
-        } else if (recent_messages.message == "id") {
-            await sendMessage(localized.handleLocale(recent_messages).itsValue.replace("%s", recent_messages.senderID), contact, secret);
-        }
-    }
 }
 
 async function removeFromFriends(username, secret) {

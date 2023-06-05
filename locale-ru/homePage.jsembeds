@@ -119,7 +119,8 @@
                     return unsafe
                         .replace(/</g, "&lt;")
                         .replace(/>/g, "&gt;")
-                        .replace(/"/g, "&quot;");
+                        .replace(/"/g, "&quot;")
+                        .replaceAll("\n", "<br>");
                 }
                 const safe = htmlEscape(text);
                 return safe
