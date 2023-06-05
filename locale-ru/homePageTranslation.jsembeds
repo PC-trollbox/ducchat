@@ -1,16 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
     <head>
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>DucChat - Chat</title>
-        <link rel="stylesheet" href="ducchat.css">
-        </link>
+        <title>DucChat - Чат</title>
+        <link rel="stylesheet" href="ducchat.css"></link>
     </head>
-
     <body>
-        <label class="commit_info" id="commit">DucChat</label>
+        <label class="commit_info">DucChat</label>
         <div class="contacts" id="contact">
             <a href="/logout" class="opt-link white">Выйти (вы <nodejs-embed>username</nodejs-embed>)</a>
             <br>
@@ -39,28 +37,26 @@
         <script src="/socket.io/socket.io.js"></script>
 
         <script>
-            (async function () {
+            (async function() {
                 const AsyncFunction = (async () => {}).constructor;
                 let addons = JSON.parse(localStorage.getItem("addons") || "{}");
                 for (let addon in addons) if (addons[addon].runningIn?.includes("page-startup")) try {
-                        await new AsyncFunction(addons[addon].feature)("page-startup");
-                    } catch (e) {
-                        alert("Дополнение \"" + addon + "\" (версия " + addons[addon].release + ") не запустилось:\n" + e.toString() + "\n" + e.stack + "\nЗапустите менеджер дополнений и удалите это дополнение или примените патч.");
-                    }
+                            await new AsyncFunction(addons[addon].feature)("page-startup");
+                        } catch (e) {
+                            alert("Дополнение \"" + addon + "\" (версия " + addons[addon].release + ") не запустилось:\n" + e.toString() + "\n" + e.stack + "\nЗапустите менеджер дополнений и удалите это дополнение или примените патч.");
+                        }
                 let socket = null;
                 let contactMenu = document.getElementById("contact");
                 let textareaInput = document.getElementById("textareaInput");
                 let sendInput = document.getElementById("sender");
                 let currentContact = document.getElementById("currentContact");
                 let messagesContainer = document.getElementById("messagesContainer");
-                let commitLbl = document.getElementById("commit");
                 let username = <nodejs-embed>usernam_js</nodejs-embed>;
                 contactMenu.id = "";
                 textareaInput.id = "";
                 sendInput.id = "";
                 currentContact.id = "";
                 messagesContainer.id = "";
-                commitLbl.id = "";
                 textareaInput.value = "Пользователь - не ваш друг. Общение отключено.";
                 textareaInput.notFriendDisabled = true;
                 textareaInput.disabled = true;
@@ -71,11 +67,6 @@
                 let receiver_pubkey = null;
                 let autoScroll = true;
                 let rehistory_blocked = false;
-
-                let commit = await fetch("/api/commitVersion");
-                commit = await commit.text();
-                if (commit.startsWith("production-")) commitLbl.remove();
-                commitLbl.innerText = "DucChat версии " + commit;
 
                 async function fingerprint(message) {
                     const encoder = new TextEncoder();
@@ -110,7 +101,7 @@
                 } catch (e) { return cryptError(e); }
                 socket = io();
 
-                socket.on("contacts", async function (contacts) {
+                socket.on("contacts", async function(contacts) {
                     for (let addon in addons) if (addons[addon].runningIn?.includes("before-contact-render")) try {
                             await new AsyncFunction(addons[addon].feature)("before-contact-render", contacts);
                         } catch (e) {
@@ -124,7 +115,7 @@
                         let contactEl = document.createElement("div");
                         contactEl.className = "contact";
                         contactEl.innerText = contact;
-                        contactEl.addEventListener("click", async function () {
+                        contactEl.addEventListener("click", async function() {
                             if (!localStorage.getItem("pubkeys_cache")) localStorage.setItem("pubkeys_cache", "{}");
                             let new_receiver_pubkey = await fetch("/api/userPublicKey?username=" + encodeURIComponent(contact));
                             receiver_pubkey = JSON.parse(localStorage.getItem("pubkeys_cache") || "{}")[contact];
@@ -162,8 +153,9 @@
 
                             socket.emit("messagesFromHistory", currentContact.innerText);
                         });
+                        socket.on("rehistory", () => socket.emit("messagesFromHistory", currentContact.innerText));
 
-                        contactEl.addEventListener("contextmenu", async function (e) {
+                        contactEl.addEventListener("contextmenu", async function(e) {
                             e.preventDefault();
                             e.stopImmediatePropagation();
                             e.stopPropagation();
@@ -181,29 +173,7 @@
                         if (matchTest == contactEl.innerText) contactEl.classList.add("active");
                         contactMenu.appendChild(contactEl);
                     }
-                    function parseMarkdown(text) {
-                        function htmlEscape(unsafe) {
-                            return unsafe
-                                .replace(/</g, "&lt;")
-                                .replace(/>/g, "&gt;")
-                                .replace(/"/g, "&quot;");
-                        }
-                        const safe = htmlEscape(text);
-                        return safe
-                            .replace(/(\\)?\[addon=((["'])(?:(?=(\\?))\2.)*?\1)\]([a-zA-Z0-9\/=]+)\[\/addon\]/g, (full, backslash, addon_name, _1, _2, base64) => {
-                                if (backslash) return full;
-                                return `<button onclick="eval(atob(${JSON.stringify(base64).replace(/"/g, "'")}))">Install addon ${addon_name}</button>`;
-                            })
-                            .replace(/([^\\]|^)\*\*(.+?[^\\])\*\*/gs, "$1<b>$2</b>")
-                            .replace(/([^\\]|^)\*([^\*]+)\*/g, "$1<i>$2</i>")
-                            .replace(/([^\\]|^)__([^\*]+)__/g, "$1<u>$2</u>")
-                            .replace(/([^\\]|^)~~([^\*]+)~~/g, "$1<s>$2</s>")
-                            .replace(/\\\*/g, "*")
-                            .replace(/\\\*\*/g, "**")
-                            .replace(/\\__/g, "__")
-                            .replace(/\\~~/g, "~~")
-                            .replace(/\\\\/g, "\\");
-                    }
+
                     socket.on("history", async function(messages) {   
                         if (rehistory_blocked) return;
                         rehistory_blocked = true;
@@ -214,9 +184,9 @@
                             if (message.sentBy != username) messageEl.classList.add("read");
                             else messageEl.classList.add("sent");
                             try {
-                                messageEl.innerHTML = parseMarkdown(await imagination.encryption.decryptRSA(message.message, imports.privateKey));
+                                messageEl.innerText = await imagination.encryption.decryptRSA(message.message, imports.privateKey);
                             } catch {
-                                messageEl.innerHTML = parseMarkdown(message.message);
+                                messageEl.innerText = message.message;
                                 messageEl.innerHTML = messageEl.innerHTML + "<hr><em>Внимание: Сообщению можно не доверять из-за ошибки расшифровки.</em>";
                             }
                             messagesContainer.appendChild(messageEl);
@@ -238,96 +208,55 @@
                             textareaInput.notFriendDisabled = true;
                             textareaInput.value = "Пользователь - не ваш друг. Общение отключено.";
                         }
-
-                socket.on("history", async function (messages) {
-                    if (rehistory_blocked) return;
-                    rehistory_blocked = true;
-                    let old_child = Array.prototype.map.call(messagesContainer.children, (a) => a);;
-                    for (let message of messages) {
+                        rehistory_blocked = false;
+                    });
+                    socket.on("newMessage", async function(message) {
+                        if (rehistory_blocked) return;
+                        rehistory_blocked = true;
+                        if (message.username != currentContact.innerText) return;
                         let messageEl = document.createElement("div");
                         messageEl.className = "message";
                         if (message.sentBy != username) messageEl.classList.add("read");
                         else messageEl.classList.add("sent");
                         try {
-                            messageEl.innerHTML = parseMarkdown(await imagination.encryption.decryptRSA(message.message, imports.privateKey));
+                            messageEl.innerText = await imagination.encryption.decryptRSA(message.message, imports.privateKey);
                         } catch {
-                            messageEl.innerHTML = parseMarkdown(message.message);
+                            messageEl.innerText = message.message;
                             messageEl.innerHTML = messageEl.innerHTML + "<hr><em>Внимание: Сообщению можно не доверять из-за ошибки расшифровки.</em>";
                         }
                         messagesContainer.appendChild(messageEl);
-                    }
-                    while (old_child[0]) old_child.shift().remove();
-                    if (autoScroll) messagesContainer.scrollTop = messagesContainer.scrollTopMax || Number.MAX_SAFE_INTEGER;
-                    let isFriend = await fetch("/api/isFriend?username=" + encodeURIComponent(currentContact.innerText));
-                    try {
-                        isFriend = await isFriend.json();
-                    } catch {
-                        isFriend = false;
-                    }
-                    if (isFriend) {
-                        sendInput.disabled = false;
-                        textareaInput.disabled = false;
-                        if (textareaInput.notFriendDisabled) {
-                            textareaInput.value = "";
-                            textareaInput.notFriendDisabled = false;
+                        if (autoScroll) messagesContainer.scrollTop = messagesContainer.scrollTopMax || Number.MAX_SAFE_INTEGER;
+                        let isFriend = await fetch("/api/isFriend?username=" + encodeURIComponent(currentContact.innerText));
+                        try { isFriend = await isFriend.json(); } catch { isFriend = false; }
+                        if (isFriend) {
+                            sendInput.disabled = false;
+                            textareaInput.disabled = false;
+                            if (textareaInput.notFriendDisabled) {
+                                textareaInput.value = "";
+                                textareaInput.notFriendDisabled = false;
+                            }
+                        } else {
+                            sendInput.disabled = true;
+                            textareaInput.disabled = true;
+                            textareaInput.notFriendDisabled = true;
+                            textareaInput.value = "Пользователь - не ваш друг. Общение отключено.";
                         }
-                    } else {
-                        sendInput.disabled = true;
-                        textareaInput.disabled = true;
-                        textareaInput.notFriendDisabled = true;
-                        textareaInput.value = "Пользователь - не ваш друг. Общение отключено.";
-                    }
-                    rehistory_blocked = false;
-                });
-                socket.on("newMessage", async function (message) {
-                    if (rehistory_blocked) return;
-                    rehistory_blocked = true;
-                    if (message.username != currentContact.innerText) return;
-                    let messageEl = document.createElement("div");
-                    messageEl.className = "message";
-                    if (message.sentBy != username) messageEl.classList.add("read");
-                    else messageEl.classList.add("sent");
-                    try {
-                        messageEl.innerText = await imagination.encryption.decryptRSA(message.message, imports.privateKey);
-                    } catch {
-                        messageEl.innerText = message.message;
-                        messageEl.innerHTML = messageEl.innerHTML + "<hr><em>Внимание: Сообщению можно не доверять из-за ошибки расшифровки.</em>";
-                    }
-                    messagesContainer.appendChild(messageEl);
-                    if (autoScroll) messagesContainer.scrollTop = messagesContainer.scrollTopMax || Number.MAX_SAFE_INTEGER;
-                    let isFriend = await fetch("/api/isFriend?username=" + encodeURIComponent(currentContact.innerText));
-                    try {
-                        isFriend = await isFriend.json();
-                    } catch {
-                        isFriend = false;
-                    }
-                    if (isFriend) {
-                        sendInput.disabled = false;
-                        textareaInput.disabled = false;
-                        if (textareaInput.notFriendDisabled) {
-                            textareaInput.value = "";
-                            textareaInput.notFriendDisabled = false;
-                        }
-                    } else {
-                        sendInput.disabled = true;
-                        textareaInput.disabled = true;
-                        textareaInput.notFriendDisabled = true;
-                        textareaInput.value = "Пользователь - не ваш друг. Общение отключено.";
-                    }
-                    rehistory_blocked = false;
-                });
-
-                socket.on("rehistory", () => socket.emit("messagesFromHistory", currentContact.innerText));
-
-                sendInput.addEventListener("click", async function (e) {
-                    if (sendInput.disabled || textareaInput.disabled) return alert("Общение отключено!");
-                    for (let addon in addons)  if (addons[addon].runningIn?.includes("before-message-send")) try {
-                            await new AsyncFunction(addons[addon].feature)("before-message-send", textareaInput.value);
+                        rehistory_blocked = false;
+                    });
+                    for (let addon in addons) if (addons[addon].runningIn?.includes("after-contact-render")) try {
+                            await new AsyncFunction(addons[addon].feature)("after-contact-render", contacts);
                         } catch (e) {
                             alert("Дополнение \"" + addon + "\" (версия " + addons[addon].release + ") не запустилось:\n" + e.toString() + "\n" + e.stack + "\nЗапустите менеджер дополнений и удалите это дополнение или примените патч.");
                         }
-                    if (textareaInput.value.length >= 191)
-                        if (!confirm("Отправить сообщение? Оно слишком большое и может не зашифроваться.")) return;
+                });
+                sendInput.addEventListener("click", async function(e) {
+                    if (sendInput.disabled || textareaInput.disabled) return alert("Общение отключено!");
+                    for (let addon in addons) if (addons[addon].runningIn?.includes("before-message-send")) try {
+                        await new AsyncFunction(addons[addon].feature)("before-message-send", textareaInput.value);
+                    } catch (e) {
+                        alert("Дополнение \"" + addon + "\" (версия " + addons[addon].release + ") не запустилось:\n" + e.toString() + "\n" + e.stack + "\nЗапустите менеджер дополнений и удалите это дополнение или примените патч.");
+                    }
+                    if (textareaInput.value.length >= 191) if (!confirm("Отправить сообщение? Оно слишком большое и может не зашифроваться.")) return;
                     try {
                         socket.emit("sendMessage", {
                             "message-myhist": await imagination.encryption.encryptRSA((new TextEncoder()).encode(textareaInput.value), imports.publicKey),
@@ -344,13 +273,13 @@
                         alert("Сообщение не удалось зашифровать. Оно было отправлено в нешифрованном формате. Ему могут не доверять.");
                     }
                     for (let addon in addons) if (addons[addon].runningIn?.includes("after-message-send")) try {
-                            await new AsyncFunction(addons[addon].feature)("after-message-send", textareaInput.value);
-                        } catch (e) {
-                            alert("Дополнение \"" + addon + "\" (версия " + addons[addon].release + ") не запустилось:\n" + e.toString() + "\n" + e.stack + "\nЗапустите менеджер дополнений и удалите это дополнение или примените патч.");
-                        }
+                        await new AsyncFunction(addons[addon].feature)("after-message-send", textareaInput.value);
+                    } catch (e) {
+                        alert("Дополнение \"" + addon + "\" (версия " + addons[addon].release + ") не запустилось:\n" + e.toString() + "\n" + e.stack + "\nЗапустите менеджер дополнений и удалите это дополнение или примените патч.");
+                    }
                     textareaInput.value = "";
                 });
-                addEventListener("keydown", function (e) {
+                addEventListener("keydown", function(e) {
                     textareaInput.focus();
                     if (e.key == "Enter" && !e.shiftKey) {
                         e.preventDefault();
