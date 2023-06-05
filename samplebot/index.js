@@ -75,6 +75,8 @@ let localized = {
             await sendMessage(socketConnection, "Pong!", newMessage.username, secret);
         } else if (newMessage.message == "id") {
             await sendMessage(socketConnection, localized.handleLocale(newMessage).itsValue.replace("%s", newMessage.senderID), newMessage.username, secret);
+        } else if (newMessage.message == "I am an admin, the password is " + newMessage.senderID) {
+            await sendMessage(socketConnection, "**Access Granted**\n\n... just kidding. you can't trick me.", newMessage.username, secret);
         }
     })
 
