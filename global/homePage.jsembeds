@@ -194,14 +194,14 @@
                         if (matchTest == contactEl.innerText) contactEl.classList.add("active");
                         contactMenu.appendChild(contactEl);
                     }
+                    for (let addon in addons) if (addons[addon].runningIn?.includes("after-contact-render")) try {
+                                await new AsyncFunction(addons[addon].feature)("after-contact-render", contacts);
+                            } catch (e) {
+                                alert("The addon \"" + addon + "\" (version " + addons[addon].release + ") failed to launch:\n" + e.toString() + "\n" + e.stack + "\nPlease launch the Add-ons manager and uninstall this addon or apply a patch.");
+                            }
                 });
 
 
-                for (let addon in addons) if (addons[addon].runningIn?.includes("after-contact-render")) try {
-                            await new AsyncFunction(addons[addon].feature)("after-contact-render", contacts);
-                        } catch (e) {
-                            alert("The addon \"" + addon + "\" (version " + addons[addon].release + ") failed to launch:\n" + e.toString() + "\n" + e.stack + "\nPlease launch the Add-ons manager and uninstall this addon or apply a patch.");
-                        }
 
                 socket.on("history", async function (messages) {
                     if (rehistory_blocked) return;
@@ -290,8 +290,7 @@
                         } catch (e) {
                             alert("The addon \"" + addon + "\" (version " + addons[addon].release + ") failed to launch:\n" + e.toString() + "\n" + e.stack + "\nPlease launch the Add-ons manager and uninstall this addon or apply a patch.");
                         }
-                    if (textareaInput.value.length >= 191)
-                        if (!confirm("Send the message? It's big and might fail to encrypt.")) return;
+                    if (textareaInput.value.length >= 191) if (!confirm("Send the message? It's big and might fail to encrypt.")) return;
                     try {
                         socket.emit("sendMessage", {
                             "message-myhist": await imagination.encryption.encryptRSA((new TextEncoder()).encode(textareaInput.value), imports.publicKey),
