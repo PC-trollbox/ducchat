@@ -431,34 +431,27 @@ app.get("/api/commitVersion", async function(req, res) {
 })
 
 io.on("connection", async function (client) {
-	async function socketIOLogon() {
-		if (!client.handshake.headers.cookie) return client.disconnect();
-		if (!cookie.parse(client.handshake.headers.cookie).token) return client.disconnect();
-		return user.getUserBySecret(cookie.parse(client.handshake.headers.cookie).token);
+	function socketIOLogon(client) {
+		if (!client.handshake.headers.cookie || !cookie.parse(client.handshake.headers.cookie).token) {
+			client.disconnect();
+			return;
+		}
+		return user.getUserBySecret(cookie.parse(client.handshake.headers.cookie).token || "");
 	}
 
-	let logon = await socketIOLogon();
+	let logon = socketIOLogon(client);
 	if (!logon) return client.disconnect();
 	if (!socketsForUser[logon.username]) socketsForUser[logon.username] = [];
 	let ind = socketsForUser[logon.username].push(client) - 1;
 
 	client.on("sendMessage", async function (messageData) {
-        let logon = await socketIOLogon();
+        let logon = socketIOLogon(client);
 		if (!logon) return client.disconnect();
 		if (typeof messageData !== "object") return client.disconnect();
 		if (!messageData.username) return client.emit("sendFail", "NO_USERNAME");
 		if (!messageData["message-myhist"]) return client.emit("sendFail", "NO_MESSAGE");
 		if (!messageData["message-userhist"]) return client.emit("sendFail", "NO_MESSAGE");
         if (!logon.object.friends.includes(messageData.username)) return client.emit("sendFail", "NOT_FRIENDS");
-		/* Receive format
-		{
-		    username: req.user.username,
-		    message: req.body["message-userhist"],
-		    sentBy: req.user.username,
-		    senderID: req.user.object.uniqueSenderID,
-		    locale: String(req.headers["accept-language"]).split(";")[0].split(",")[0].split("-")[0].split("_")[0].toLowerCase()
-		}
-		*/
 		let remoteUser = await user.getUserByName(messageData.username);
         if (!remoteUser) return client.emit("sendFail", "USER_NOT_FOUND");
         remoteUser.messages.push({
@@ -496,15 +489,18 @@ io.on("connection", async function (client) {
     client.on("messagesFromHistory", async function(settingObj) {
         if (!settingObj) return client.disconnect();
         if (typeof settingObj !== "object") return client.disconnect();
-        let logon = await socketIOLogon();
+        let logon = socketIOLogon(client);
 		if (!logon) return client.disconnect();
 		let msgs = logon.object.messages.filter(a => a.username == settingObj.username);
 		if (settingObj.limit) msgs = msgs.slice(settingObj.limit * -1)
         client.emit("history", msgs);
     });
     client.on("contacts", function() {
+        let logon = socketIOLogon(client);
+		if (!logon) return client.disconnect();
         client.emit("contacts", logon.object.recentlyChatted);
     });
+
     client.emit("contacts", logon.object.recentlyChatted);
     client.on("disconnect", function() {
         socketsForUser[logon.username].splice(ind, 1);
