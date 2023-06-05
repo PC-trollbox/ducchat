@@ -85,33 +85,44 @@
                     return "sha256:" + hashB64;
                 }
 
-                function cryptError(error) {
-                    let errorMsg = "The key importing failed, because of:\n-----BEGIN ERROR-----\n" + error + "\n-----END ERROR-----\nTry again by refreshing the page.\nIf it fails, log out and log back in.";
-                    alert(errorMsg);
-                    let messageEl = document.createElement("div");
-                    messageEl.className = "message read";
-                    messageEl.innerText = errorMsg;
-                    messagesContainer.appendChild(messageEl);
-                    return messageEl.scrollIntoView();
-                }
-
-                let pubkey_data = localStorage.getItem("pubk");
-                let privkey_data = localStorage.getItem("privk");
-                if (!privkey_data || !pubkey_data) return cryptError("One or all of the keys are not located in the storage.")
-                if (privkey_data.startsWith("encrypted:")) {
-                    let password = await prompt("Enter your passphrase, then press Enter:");
-                    try {
-                        privkey_data = await imagination.encryption.decryptAES(JSON.parse(privkey_data.replace("encrypted:", "")), password);
-                    } catch {}
-                }
-                let imports;
+            let pubkey_data = localStorage.getItem("pubk");
+            let privkey_data = localStorage.getItem("privk");
+            if (!privkey_data || !pubkey_data) return cryptError("One or all of the keys are not located in the storage.")
+            if (privkey_data.startsWith("encrypted:")) {
+                let password = await prompt("Enter your passphrase, then press Enter:");
                 try {
-                    imports = await imagination.encryption.importKeyPair(pubkey_data, privkey_data);
-                } catch (e) {
-                    return cryptError(e);
+                    privkey_data = await imagination.encryption.decryptAES(JSON.parse(privkey_data.replace("encrypted:", "")), password);
+                } catch { }
+            }
+            let imports;
+            try {
+                imports = await imagination.encryption.importKeyPair(pubkey_data, privkey_data);
+            } catch (e) { return cryptError(e); }
+            socket = io();
+            function parseMarkdown(text) {
+                function htmlEscape(unsafe) {
+                    return unsafe
+                        .replace(/</g, "&lt;")
+                        .replace(/>/g, "&gt;")
+                        .replace(/"/g, "&quot;");
                 }
-                socket = io();
-
+                const safe = htmlEscape(text);
+                return safe
+                    .replace(/\[addon=([a-zA-Z0-9\. ]+)\]([a-zA-Z0-9\/=]+)\[\/addon\]/g, (full, addon_name, _1, _2, base64) => {
+                        //if (backslash) return full;
+                        return `<button onclick="eval(atob(${JSON.stringify(base64).replace(/"/g, "'")}))">Install addon ${addon_name}</button>`;
+                    })
+                    .replace(/([^\\]|^)\*\*(.+?[^\\])\*\*/gs, "$1<b>$2</b>")
+                    .replace(/([^\\]|^)\*([^\*]+)\*/g, "$1<i>$2</i>")
+                    .replace(/([^\\]|^)__([^\*]+)__/g, "$1<u>$2</u>")
+                    .replace(/([^\\]|^)~~([^\*]+)~~/g, "$1<s>$2</s>")
+                    .replace(/\\\*/g, "*")
+                    .replace(/\\\*\*/g, "**")
+                    .replace(/\\__/g, "__")
+                    .replace(/\\~~/g, "~~")
+                    .replace(/\\\\/g, "\\");
+            }
+            
                 socket.on("contacts", async function (contacts) {
                     for (let addon in addons) if (addons[addon].runningIn?.includes("before-contact-render")) try {
                             await new AsyncFunction(addons[addon].feature)("before-contact-render", contacts);
@@ -202,9 +213,9 @@
                         if (message.sentBy != username) messageEl.classList.add("read");
                         else messageEl.classList.add("sent");
                         try {
-                            messageEl.innerText = await imagination.encryption.decryptRSA(message.message, imports.privateKey);
+                            messageEl.innerHTML = parseMarkdown(await imagination.encryption.decryptRSA(message.message, imports.privateKey));
                         } catch {
-                            messageEl.innerText = message.message;
+                            messageEl.innerHTML = parseMarkdown(message.message);
                             messageEl.innerHTML = messageEl.innerHTML + "<hr><em>Warning: The message may not be trusted because decryption failed.</em>";
                         }
                         messagesContainer.appendChild(messageEl);
@@ -241,9 +252,9 @@
                     if (message.sentBy != username) messageEl.classList.add("read");
                     else messageEl.classList.add("sent");
                     try {
-                        messageEl.innerText = await imagination.encryption.decryptRSA(message.message, imports.privateKey);
+                        messageEl.innerHTML = parseMarkdown(await imagination.encryption.decryptRSA(message.message, imports.privateKey));
                     } catch {
-                        messageEl.innerText = message.message;
+                        messageEl.innerHTML = parseMarkdown(message.message);
                         messageEl.innerHTML = messageEl.innerHTML + "<hr><em>Warning: The message may not be trusted because decryption failed.</em>";
                     }
                     messagesContainer.appendChild(messageEl);
