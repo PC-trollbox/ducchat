@@ -132,3 +132,14 @@ a {
     border-color: #5c5c5c;
     border-radius: 5px;
 }
+
+.commit_info {
+    position: fixed;
+    top: 8px;
+    right: 8px;
+    text-align: right;
+    font-family: monospace;
+    color: white;
+    z-index: 1;
+    opacity: 75%;
+}

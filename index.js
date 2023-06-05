@@ -9,9 +9,12 @@ const http = require("http").Server(app);
 const io = require("socket.io")(http);
 const cookie = require("cookie");
 const he = require("he");
+const execProcess = require("util").promisify(require('node:child_process').exec);
 let friendTokens = {};
 let tempSecTok = {};
 let socketsForUser = {};
+let productionEnvironment = false; // Makes JSON files smaller
+if (process.env.NODE_ENV == "production") productionEnvironment = true;
 
 app.use(cookieParser());
 app.use(bodyParser.urlencoded({
@@ -57,7 +60,7 @@ const user = {
 		return JSON.parse(fs.readFileSync(__dirname + "/users.json"));
 	},
 	set db(val) {
-		return fs.writeFileSync(__dirname + "/users.json", JSON.stringify(val, null, "\t"));
+		return fs.writeFileSync(__dirname + "/users.json", productionEnvironment ? JSON.stringify(val) : JSON.stringify(val, null, "\t"));
 	}
 }
 
@@ -169,11 +172,13 @@ app.get("/api/contacts", RequiredUserMiddleware, function (req, res) {
 });
 
 app.get("/api/messages/", RequiredUserMiddleware, function (req, res) {
-	let limit = 50;
-	if (req.query.limit && Number(req.query.limit) && !isNaN(Number(req.query.limit)) && isFinite(Number(req.query.limit))) limit = Number(req.query.limit);
-	let a = req.user.object.messages.filter((a) => a.username == req.query.username);
-	while (a.length > limit) a.shift();
-	res.json(a);
+	res.json([
+		{
+			username: req.query.username,
+			message: "Feature discontinued. Use Socket.IO which is simpler and better.",
+			sentBy: "system"
+		}
+	])
 });
 
 app.get("/api/isFriend/", RequiredUserMiddleware, function (req, res) {
@@ -183,52 +188,7 @@ app.get("/api/isFriend/", RequiredUserMiddleware, function (req, res) {
 });
 
 app.post("/api/message/", RequiredUserMiddleware, function (req, res) {
-	if (!req.body["message-myhist"]) return res.status(400).send("Bad request! Your history is not defined.");
-	if (!req.body["message-userhist"]) return res.status(400).send("Bad request! User history is not defined.");
-	if (!req.body.username) return res.status(400).send("Bad request!");
-	if (!user.getUserByName(req.body.username)) return res.status(404).send("User not found!");
-	if (!req.user.object.friends.includes(req.body.username)) return res.status(400).send("Bad request! User not in friend list.");
-	req.user.object.messages.push({
-		username: req.body.username,
-		message: req.body["message-myhist"],
-		sentBy: req.user.username,
-		senderID: req.user.object.uniqueSenderID,
-		locale: String(req.headers["accept-language"]).split(";")[0].split(",")[0].split("-")[0].split("_")[0].toLowerCase()
-	});
-	let usr2 = user.getUserByName(req.body.username);
-	usr2.messages.push({
-		username: req.user.username,
-		message: req.body["message-userhist"],
-		sentBy: req.user.username,
-		senderID: req.user.object.uniqueSenderID,
-		locale: String(req.headers["accept-language"]).split(";")[0].split(",")[0].split("-")[0].split("_")[0].toLowerCase()
-	});
-
-	req.user.object.recentlyChatted = req.user.object.recentlyChatted.filter((a) => a != req.body.username);
-	req.user.object.recentlyChatted.unshift(req.body.username);
-
-	usr2.recentlyChatted = usr2.recentlyChatted.filter((a) => a != req.user.username);
-	usr2.recentlyChatted.unshift(req.user.username);
-    if (!socketsForUser[req.user.username]) socketsForUser[req.user.username] = [];
-    if (!socketsForUser[req.body.username]) socketsForUser[req.body.username] = [];
-    for (let any of socketsForUser[req.user.username]) any.emit("newMessage", {
-		username: req.body.username,
-		message: req.body["message-myhist"],
-		sentBy: req.user.username,
-		senderID: req.user.object.uniqueSenderID,
-		locale: String(req.headers["accept-language"]).split(";")[0].split(",")[0].split("-")[0].split("_")[0].toLowerCase()
-	});
-    for (let any of socketsForUser[req.body.username]) any.emit("newMessage", {
-		username: req.user.username,
-		message: req.body["message-userhist"],
-		sentBy: req.user.username,
-		senderID: req.user.object.uniqueSenderID,
-		locale: String(req.headers["accept-language"]).split(";")[0].split(",")[0].split("-")[0].split("_")[0].toLowerCase()
-	});
-
-	user.setUser(req.user.username, req.user.object);
-	user.setUser(req.body.username, usr2);
-	res.send("OK");
+	res.status(400).send("Feature discontinued. Use Socket.IO which is simpler and better.");
 });
 
 app.get("/api/userPublicKey/", RequiredUserMiddleware, function (req, res) {
@@ -458,8 +418,17 @@ app.get("/manageAccount/removeAccount", RequiredUserMiddleware, function (req, r
 });
 
 app.get("/addons", function(req, res) {
-	res.render(getLocalePath("addons.jsembeds", req.headers["accept-language"]))
+	res.render(getLocalePath("addons.jsembeds", req.headers["accept-language"]));
 });
+
+app.get("/api/commitVersion", async function(req, res) {
+	try {
+		let process = await execProcess("git rev-parse HEAD");
+		res.send((productionEnvironment ? "production-" : "") + process.stdout || "unknown");
+	} catch {
+		res.send("unknown");
+	}
+})
 
 io.on("connection", async function (client) {
 	async function socketIOLogon() {
