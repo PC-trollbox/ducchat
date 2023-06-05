@@ -270,12 +270,19 @@
                         messageEl.className = "message";
                         if (message.sentBy != username) messageEl.classList.add("read");
                         else messageEl.classList.add("sent");
+                        let failedDecrypt = false;
+                        for (let addon in addons) if (addons[addon].runningIn?.includes("decryptMessage")) try {
+                            message.message = await new AsyncFunction(addons[addon].feature)("decryptMessage", message.message);
+                        } catch (e) {
+                            failedDecrypt = true;
+                        }
                         try {
                             messageEl.innerHTML = parseMarkdown(await imagination.encryption.decryptRSA(message.message, imports.privateKey));
                         } catch {
                             messageEl.innerHTML = parseMarkdown(message.message);
                             messageEl.innerHTML = messageEl.innerHTML + "<hr><em>Внимание: Сообщению можно не доверять из-за ошибки расшифровки.</em>";
                         }
+                        for (let addon in addons) if (addons[addon].runningIn?.includes("decryptMessage")) messageEl.innerHTML = await parseMarkdown(message.message) + (failedDecrypt ? "<hr><em>Внимание: Сообщению нельзя доверять из-за ошибки расшифровки с помощью дополнения.</em>" : "");
                         messagesContainer.appendChild(messageEl);
                     }
                     while (old_child[0]) old_child.shift().remove();
@@ -306,12 +313,19 @@
                     messageEl.className = "message";
                     if (message.sentBy != username) messageEl.classList.add("read");
                     else messageEl.classList.add("sent");
+                    let failedDecrypt = false;
+                    for (let addon in addons) if (addons[addon].runningIn?.includes("decryptMessage")) try {
+                        message.message = await new AsyncFunction(addons[addon].feature)("decryptMessage", message.message);
+                    } catch (e) {
+                        failedDecrypt = true;
+                    }
                     try {
                         messageEl.innerHTML = parseMarkdown(await imagination.encryption.decryptRSA(message.message, imports.privateKey));
                     } catch {
                         messageEl.innerHTML = parseMarkdown(message.message);
                         messageEl.innerHTML = messageEl.innerHTML + "<hr><em>Внимание: Сообщению можно не доверять из-за ошибки расшифровки.</em>";
                     }
+                    for (let addon in addons) if (addons[addon].runningIn?.includes("decryptMessage")) messageEl.innerHTML = await parseMarkdown(message.message) + (failedDecrypt ? "<hr><em>Внимание: Сообщению нельзя доверять из-за ошибки расшифровки с помощью дополнения.</em>" : "");
                     messagesContainer.appendChild(messageEl);
                     if (autoScroll) messagesContainer.scrollTop = messagesContainer.scrollTopMax || Number.MAX_SAFE_INTEGER;
                     let isFriend = await fetch("/api/isFriend?username=" + encodeURIComponent(currentContact.innerText));
@@ -342,6 +356,27 @@
 
                 sendInput.addEventListener("click", async function (e) {
                     if (sendInput.disabled || textareaInput.disabled) return alert("Общение отключено!");
+
+                    let failedEncrypt = false;
+                    for (let addon in addons) if (addons[addon].runningIn?.includes("encryptMessage")) try {
+                        textareaInput.value = await new AsyncFunction(addons[addon].feature)("encryptMessage", textareaInput.value);
+                    } catch {
+                        failedEncrypt = true;
+                    }
+
+                    if (failedEncrypt) alert("Сообщение не удалось зашифровать с помощью дополнения. Часть или всё сообщение не было зашифровано. Ему могут не доверять.");
+
+                    for (let addon in addons) if (addons[addon].runningIn?.includes("encryptMessage")) {
+                            socket.emit("sendMessage", {
+                                    "message-myhist": textareaInput.value,
+                                    "message-userhist": textareaInput.value,
+                                    username: currentContact.innerText
+                                });
+
+                                textareaInput.value = "";
+                                return;
+                            }
+
                     for (let addon in addons)  if (addons[addon].runningIn?.includes("before-message-send")) try {
                             await new AsyncFunction(addons[addon].feature)("before-message-send", textareaInput.value);
                         } catch (e) {

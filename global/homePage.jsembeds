@@ -103,7 +103,13 @@
                 imports = await imagination.encryption.importKeyPair(pubkey_data, privkey_data);
             } catch (e) { return cryptError(e); }
             socket = io();
-            function parseMarkdown(text) {
+            async function parseMarkdown(text) {
+                for (let addon in addons) if (addons[addon].runningIn?.includes("parseMessage")) try {
+                        text = await new AsyncFunction(addons[addon].feature)("parseMessage", text);
+                    } catch (e) {
+                        alert("The addon \"" + addon + "\" (version " + addons[addon].release + ") failed to launch:\n" + e.toString() + "\n" + e.stack + "\nPlease launch the Add-ons manager and uninstall this addon or apply a patch.");
+                    }
+                for (let addon in addons) if (addons[addon].runningIn?.includes("parseMessage")) return text;
                 function htmlEscape(unsafe) {
                     return unsafe
                         .replace(/</g, "&lt;")
@@ -262,12 +268,19 @@
                         messageEl.className = "message";
                         if (message.sentBy != username) messageEl.classList.add("read");
                         else messageEl.classList.add("sent");
+                        let failedDecrypt = false;
+                        for (let addon in addons) if (addons[addon].runningIn?.includes("decryptMessage")) try {
+                            message.message = await new AsyncFunction(addons[addon].feature)("decryptMessage", message.message);
+                        } catch (e) {
+                            failedDecrypt = true;
+                        }
                         try {
-                            messageEl.innerHTML = parseMarkdown(await imagination.encryption.decryptRSA(message.message, imports.privateKey));
+                            messageEl.innerHTML = await parseMarkdown(await imagination.encryption.decryptRSA(message.message, imports.privateKey));
                         } catch {
-                            messageEl.innerHTML = parseMarkdown(message.message);
+                            messageEl.innerHTML = await parseMarkdown(message.message);
                             messageEl.innerHTML = messageEl.innerHTML + "<hr><em>Warning: The message may not be trusted because decryption failed.</em>";
                         }
+                        for (let addon in addons) if (addons[addon].runningIn?.includes("decryptMessage")) messageEl.innerHTML = await parseMarkdown(message.message) + (failedDecrypt ? "<hr><em>Warning: The message may not be trusted because decryption using the addon failed.</em>" : "");
                         messagesContainer.appendChild(messageEl);
                     }
                     while (old_child[0]) old_child.shift().remove();
@@ -298,12 +311,19 @@
                     messageEl.className = "message";
                     if (message.sentBy != username) messageEl.classList.add("read");
                     else messageEl.classList.add("sent");
+                    let failedDecrypt = false;
+                    for (let addon in addons) if (addons[addon].runningIn?.includes("decryptMessage")) try {
+                        message.message = await new AsyncFunction(addons[addon].feature)("decryptMessage", message.message);
+                    } catch (e) {
+                        failedDecrypt = true;
+                    }
                     try {
-                        messageEl.innerHTML = parseMarkdown(await imagination.encryption.decryptRSA(message.message, imports.privateKey));
+                        messageEl.innerHTML = await parseMarkdown(await imagination.encryption.decryptRSA(message.message, imports.privateKey));
                     } catch {
-                        messageEl.innerHTML = parseMarkdown(message.message);
+                        messageEl.innerHTML = await parseMarkdown(message.message);
                         messageEl.innerHTML = messageEl.innerHTML + "<hr><em>Warning: The message may not be trusted because decryption failed.</em>";
                     }
+                    for (let addon in addons) if (addons[addon].runningIn?.includes("decryptMessage")) messageEl.innerHTML = await parseMarkdown(message.message) + (failedDecrypt ? "<hr><em>Warning: The message may not be trusted because decryption using the addon failed.</em>" : "");
                     messagesContainer.appendChild(messageEl);
                     if (autoScroll) messagesContainer.scrollTop = messagesContainer.scrollTopMax || Number.MAX_SAFE_INTEGER;
                     let isFriend = await fetch("/api/isFriend?username=" + encodeURIComponent(currentContact.innerText));
@@ -339,6 +359,27 @@
                         } catch (e) {
                             alert("The addon \"" + addon + "\" (version " + addons[addon].release + ") failed to launch:\n" + e.toString() + "\n" + e.stack + "\nPlease launch the Add-ons manager and uninstall this addon or apply a patch.");
                         }
+
+                    let failedEncrypt = false;
+                    for (let addon in addons) if (addons[addon].runningIn?.includes("encryptMessage")) try {
+                        textareaInput.value = await new AsyncFunction(addons[addon].feature)("encryptMessage", textareaInput.value);
+                    } catch {
+                        failedEncrypt = true;
+                    }
+
+                    if (failedEncrypt) alert("The message has failed to be encrypted using an addon. An semi- or a completely unencrypted format was sent. It might be untrusted.");
+
+                    for (let addon in addons) if (addons[addon].runningIn?.includes("encryptMessage")) {
+                            socket.emit("sendMessage", {
+                                    "message-myhist": textareaInput.value,
+                                    "message-userhist": textareaInput.value,
+                                    username: currentContact.innerText
+                                });
+
+                                textareaInput.value = "";
+                                return;
+                            }
+
                     if (textareaInput.value.length >= 191) if (!confirm("Send the message? It's big and might fail to encrypt.")) return;
                     try {
                         socket.emit("sendMessage", {
