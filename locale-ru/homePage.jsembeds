@@ -362,6 +362,7 @@
 
                 sendInput.addEventListener("click", async function (e) {
                     if (sendInput.disabled || textareaInput.disabled) return alert("Общение отключено!");
+                    if (!textareaInput.value) return;
 
                     let failedEncrypt = false;
                     for (let addon in addons) if (addons[addon].runningIn?.includes("encryptMessage")) try {
