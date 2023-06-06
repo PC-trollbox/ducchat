@@ -100,7 +100,7 @@ a {
 
 .messagesContainer {
     overflow: scroll;
-    height: 90%;
+    height: 89%;
     margin-top: 10px;
 }
 
@@ -126,7 +126,7 @@ a {
     bottom: 0;
     right: 0;
     width: 9%;
-    height: 6%;
+    height: 5.7%;
     background: #303030;
     color: white;
     border-color: #5c5c5c;

@@ -89,13 +89,9 @@ function getLocalePath(file, AL, dirname = __dirname) {
 	return __dirname + "/unknownFile.jsembeds";
 }
 
-app.get("/", RequiredNoUserMiddleware, function (req, res) {
-	res.render(getLocalePath("logonPage.jsembeds", req.headers["accept-language"]));
-});
+app.get("/", RequiredNoUserMiddleware, (req, res) => res.render(getLocalePath("logonPage.jsembeds", req.headers["accept-language"])));
 
-app.get("/ducchat.css", function (req, res) {
-	res.sendFile(__dirname + "/ducchat.css");
-});
+app.get("/ducchat.css", (req, res) => res.sendFile(__dirname + "/ducchat.css"));
 
 app.get("/home", RequiredUserMiddleware, function (req, res) {
 	res.render(getLocalePath("homePage.jsembeds", req.headers["accept-language"]), {
@@ -109,9 +105,7 @@ app.get("/logout", RequiredUserMiddleware, function (req, res) {
 	res.redirect("/");
 })
 
-app.get("/register", RequiredNoUserMiddleware, function (req, res) {
-	res.render(getLocalePath("register.jsembeds", req.headers["accept-language"]));
-});
+app.get("/register", RequiredNoUserMiddleware, (req, res) => res.render(getLocalePath("register.jsembeds", req.headers["accept-language"])));
 
 app.post("/imagination/register", function (req, res) {
 	if (!req.body.pubkey) return res.status(400).send("Bad request!");
@@ -125,20 +119,8 @@ app.post("/imagination/register", function (req, res) {
 			pubkey: req.body.pubkey,
 			secret: crypto.randomBytes(64).toString("hex"),
 			friends: [],
-			messages: [{
-				username: "system",
-				message: crypto.publicEncrypt({
-					key: req.body.pubkey,
-					padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-					oaepHash: "sha256"
-				}, Buffer.from("Welcome to Ducchat!", "utf-8")).toString("base64"),
-				sentBy: "system",
-				senderID: "0".repeat(128),
-				locale: "en"
-			}],
-			recentlyChatted: [
-				"system"
-			],
+			messages: [],
+			recentlyChatted: [],
 			uniqueSenderID: crypto.randomBytes(64).toString("hex")
 		});
 	} catch {
@@ -162,28 +144,10 @@ app.get("/imagination/getEncryptedSecret", RequiredNoUserMiddleware, function (r
 
 app.use("/imagination", express.static(__dirname + "/imagination"));
 
-app.get("/api/contacts", RequiredUserMiddleware, function (req, res) {
-	res.json(req.user.object.recentlyChatted);
-});
-
-app.get("/api/messages/", RequiredUserMiddleware, function (req, res) {
-	res.json([
-		{
-			username: req.query.username,
-			message: "Feature discontinued. Use Socket.IO which is simpler and better.",
-			sentBy: "system"
-		}
-	])
-});
-
 app.get("/api/isFriend/", RequiredUserMiddleware, function (req, res) {
 	if (!req.query.username) return res.status(400).send("Bad request!");
 	if (!user.getUserByName(req.query.username)) return res.status(404).send("User not found!");
 	res.json(req.user.object.friends.includes(req.query.username));
-});
-
-app.post("/api/message/", RequiredUserMiddleware, function (req, res) {
-	res.status(400).send("Feature discontinued. Use Socket.IO which is simpler and better.");
 });
 
 app.get("/api/userPublicKey/", RequiredUserMiddleware, function (req, res) {
@@ -291,9 +255,7 @@ app.get("/api/privacyClearChat/", RequiredUserMiddleware, function (req, res) {
 	res.send("OK");
 });
 
-app.get("/api/friends", RequiredUserMiddleware, function (req, res) {
-	res.json(req.user.object.friends);
-});
+app.get("/api/friends", RequiredUserMiddleware, (req, res) => res.json(req.user.object.friends));
 
 app.get("/api/friendTokens", RequiredUserMiddleware, function (req, res) {
 	let filteredFriendTokens = {};
@@ -354,17 +316,6 @@ app.get("/manageAccount/changeKeypair", RequiredUserMiddleware, function (req, r
 	delete tempSecTok[req.query.security_token];
 	try {
 		req.user.object.pubkey = req.query.pubkey;
-		req.user.object.messages.push({
-			username: "system",
-			message: crypto.publicEncrypt({
-				key: req.query.pubkey,
-				padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-				oaepHash: 'sha256'
-			}, Buffer.from("You have changed your public key to " + fingerprint(req.query.pubkey) + ". Previous messages would fail to decrypt.", "utf-8")).toString("base64"),
-			sentBy: "system",
-			senderID: "0".repeat(128),
-			locale: "en"
-		});
 		req.user.object.recentlyChatted = req.user.object.recentlyChatted.filter((a) => a != "system");
 		req.user.object.recentlyChatted.unshift("system");
 		req.user.object.secret = crypto.randomBytes(64).toString("hex");
@@ -413,9 +364,7 @@ app.get("/manageAccount/removeAccount", RequiredUserMiddleware, function (req, r
 	res.redirect("/");
 });
 
-app.get("/addons", function(req, res) {
-	res.render(getLocalePath("addons.jsembeds", req.headers["accept-language"]));
-});
+app.get("/addons", (req, res) => res.render(getLocalePath("addons.jsembeds", req.headers["accept-language"])));
 
 app.get("/api/commitVersion", async function(req, res) {
 	try {
@@ -424,7 +373,27 @@ app.get("/api/commitVersion", async function(req, res) {
 	} catch {
 		res.send("unknown");
 	}
-})
+});
+
+app.get("/ducchat.js", RequiredUserMiddleware, (req, res) => res.sendFile(getLocalePath("ducchat.js", req.headers["accept-language"])));
+
+app.get("/api/username", RequiredUserMiddleware, (req, res) => res.send(req.user.username));
+
+app.get("/api/sharedSecret", RequiredUserMiddleware, function(req, res) {
+	if (!req.query.newSecretMy && !req.query.newSecretReceiver) {
+		if (req.user.object.secrets) return res.send(req.user.object.secrets[req.query.username]);
+		res.status(404).send("Not configured");
+	} else {
+		if (!req.user.object.secrets) req.user.object.secrets = {};
+		req.user.object.secrets[req.query.username] = req.query.newSecretMy;
+		let receiver = user.getUserByName(req.query.username);
+		if (!receiver.secrets) receiver.secrets = {};
+		if (receiver) receiver.secrets[req.user.username] = req.query.newSecretReceiver;
+		user.setUser(req.user.username, req.user.object);
+		user.setUser(req.query.username, receiver);
+		res.send("OK");
+	}
+});
 
 io.on("connection", async function (client) {
 	function socketIOLogon(client) {
@@ -445,21 +414,20 @@ io.on("connection", async function (client) {
 		if (!logon) return client.disconnect();
 		if (typeof messageData !== "object") return client.disconnect();
 		if (!messageData.username) return client.emit("sendFail", "NO_USERNAME");
-		if (!messageData["message-myhist"]) return client.emit("sendFail", "NO_MESSAGE");
-		if (!messageData["message-userhist"]) return client.emit("sendFail", "NO_MESSAGE");
+		if (!messageData.message) return client.emit("sendFail", "NO_MESSAGE");
         if (!logon.object.friends.includes(messageData.username)) return client.emit("sendFail", "NOT_FRIENDS");
 		let remoteUser = await user.getUserByName(messageData.username);
         if (!remoteUser) return client.emit("sendFail", "USER_NOT_FOUND");
         remoteUser.messages.push({
             username: logon.username,
-            message: messageData["message-userhist"],
+            message: messageData.message,
             sentBy: logon.username,
             senderID: logon.object.uniqueSenderID,
             locale: String(client.handshake.headers["accept-language"]).split(";")[0].split(",")[0].split("-")[0].split("_")[0].toLowerCase()
         });
         logon.object.messages.push({
             username: messageData.username,
-            message: messageData["message-myhist"],
+            message: messageData.message,
             sentBy: logon.username,
             senderID: logon.object.uniqueSenderID,
             locale: String(client.handshake.headers["accept-language"]).split(";")[0].split(",")[0].split("-")[0].split("_")[0].toLowerCase()
@@ -469,14 +437,14 @@ io.on("connection", async function (client) {
         if (!socketsForUser[messageData.username]) socketsForUser[messageData.username] = [];
         for (let thatClient of socketsForUser[messageData.username]) thatClient?.emit("newMessage", {
                 username: logon.username,
-                message: messageData["message-userhist"],
+                message: messageData.message,
                 sentBy: logon.username,
                 senderID: logon.object.uniqueSenderID,
                 locale: String(client.handshake.headers["accept-language"]).split(";")[0].split(",")[0].split("-")[0].split("_")[0].toLowerCase()
             });
         for (let thatClient of socketsForUser[logon.username]) thatClient?.emit("newMessage", {
                 username: messageData.username,
-                message: messageData["message-myhist"],
+                message: messageData.message,
                 sentBy: logon.username,
                 senderID: logon.object.uniqueSenderID,
                 locale: String(client.handshake.headers["accept-language"]).split(";")[0].split(",")[0].split("-")[0].split("_")[0].toLowerCase()
@@ -498,9 +466,7 @@ io.on("connection", async function (client) {
     });
 
     client.emit("contacts", logon.object.recentlyChatted);
-    client.on("disconnect", function() {
-        socketsForUser[logon.username].splice(ind, 1);
-    });
+    client.on("disconnect", () => socketsForUser[logon.username].splice(ind, 1));
 });
 
 http.listen(4598, function () {

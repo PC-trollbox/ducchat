@@ -57,14 +57,13 @@ let localized = {
     });
 
     socketConnection.on("newMessage", async function(newMessage) {
+        if (newMessage.username != newMessage.sentBy) return;
+        let secret_sendRec = await grabSecret(newMessage.username, secret);
         try {
-            newMessage.message = crypto.privateDecrypt({
-                key: fs.readFileSync(__dirname + "/KEEP_SECRET.key"),
-                padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-                oaepHash: 'sha256'
-            }, Buffer.from(newMessage.message, "base64")).toString();
-        } catch {
-            await sendMessage(socketConnection, localized.handleLocale(newMessage).untrustedMessage, newMessage.username, secret, false);
+            newMessage.message = decryptData(newMessage.message, secret_sendRec);
+        } catch (e) {
+            console.log(e);
+            return await sendMessage(socketConnection, localized.handleLocale(newMessage).untrustedMessage, newMessage.username, secret, false);
         }
         if (newMessage.message == "stop") {
             await sendMessage(socketConnection, localized.handleLocale(newMessage).goodBye, newMessage.username, secret);
@@ -91,23 +90,10 @@ let localized = {
 
 function sendMessage(socket, message_txt, target, secret, encrypted = true) {
     return new Promise(async function(resolve, reject) {
-        let pubkey_request = await fetch(DUCCHAT_API + "userPublicKey?username=" + encodeURIComponent(target), {
-            headers: {
-                "Cookie": "token=" + secret,
-            }
-        });
-        pubkey_request = await pubkey_request.text();
+        let secret_sendRec = await grabSecret(target, secret);
+        
         socket.emit("sendMessage", {
-            "message-myhist": encrypted ? crypto.publicEncrypt({
-                key: fs.readFileSync(__dirname + "/SEND_TO_SERVER.key"),
-                padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-                oaepHash: 'sha256'
-            }, message_txt).toString("base64") : message_txt,
-            "message-userhist": encrypted ? crypto.publicEncrypt({
-                key: pubkey_request,
-                padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-                oaepHash: 'sha256'
-            }, message_txt).toString("base64") : message_txt,
+            message: encrypted ? encryptData(message_txt, secret_sendRec) : message_txt,
             username: target
         });
 
@@ -117,6 +103,7 @@ function sendMessage(socket, message_txt, target, secret, encrypted = true) {
             eRecieve = true;
             reject(new Error("Ducchat error: " + sendFailData));
         });
+
         socket.once("newMessage", function (message) {
             if (eRecieve) return;
             eRecieve = true;
@@ -126,20 +113,12 @@ function sendMessage(socket, message_txt, target, secret, encrypted = true) {
 }
 
 async function acceptAllFriendTokens(socket, secret) {
-    let friend_tokens = await fetch(DUCCHAT_API + "friendTokens", {
-        headers: {
-            "Cookie": "token=" + secret,
-        }
-    });
+    let friend_tokens = await fetch(DUCCHAT_API + "friendTokens", fetchOpts(secret));
     try {
         friend_tokens = await friend_tokens.json();
     } catch { return false; }
     for (let friend_token in friend_tokens) {
-        await fetch(DUCCHAT_API + "addToFriends?friendToken=" + encodeURIComponent(friend_token), {
-            headers: {
-                "Cookie": "token=" + secret,
-            }
-        });
+        await fetch(DUCCHAT_API + "addToFriends?friendToken=" + encodeURIComponent(friend_token), fetchOpts(secret));
         await clearChat(friend_tokens[friend_token].from, secret, true);
         await sendMessage(socket, localized.en.startMessage, friend_tokens[friend_token].from, secret);
     }
@@ -147,22 +126,71 @@ async function acceptAllFriendTokens(socket, secret) {
 }
 
 async function clearChat(username, secret, privacy = false) {
-    if (privacy) return fetch(DUCCHAT_API + "privacyClearChat?username=" + encodeURIComponent(username), {
-            headers: {
-                "Cookie": "token=" + secret,
-            }
-        });
-    else return fetch(DUCCHAT_API + "clearChat?username=" + encodeURIComponent(username), {
-            headers: {
-                "Cookie": "token=" + secret,
-            }
-        });
+    if (privacy) return fetch(DUCCHAT_API + "privacyClearChat?username=" + encodeURIComponent(username), fetchOpts(secret));
+    return fetch(DUCCHAT_API + "clearChat?username=" + encodeURIComponent(username), fetchOpts(secret));
 }
 
 async function removeFromFriends(username, secret) {
-    return fetch(DUCCHAT_API + "removeFromFriends?username=" + encodeURIComponent(username), {
+    return fetch(DUCCHAT_API + "removeFromFriends?username=" + encodeURIComponent(username), fetchOpts(secret));
+}
+
+function decryptData(encryptedData, password) {
+    const key = crypto.pbkdf2Sync(password, Buffer.from(encryptedData.salt, "base64"), 100000, 32, "sha256");
+    const decipher = crypto.createDecipheriv("aes-256-cbc", key, Buffer.from(encryptedData.iv, "base64"));
+    let decryptedData = decipher.update(Buffer.from(encryptedData.ciphertext, "base64"));
+    decryptedData = Buffer.concat([decryptedData, decipher.final()]);
+    return decryptedData.toString();
+}
+
+function encryptData(data, password) {
+    const salt = crypto.randomBytes(16);
+    const key = crypto.pbkdf2Sync(password, salt, 100000, 32, "sha256");
+    const iv = crypto.randomBytes(16);
+  
+    const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
+    let encryptedData = cipher.update(data);
+    encryptedData = Buffer.concat([encryptedData, cipher.final()]);
+  
+    const ciphertext = encryptedData.toString("base64");
+    const saltStr = salt.toString("base64");
+    const ivStr = iv.toString("base64");
+  
+    return { ciphertext, salt: saltStr, iv: ivStr };
+}
+
+function fetchOpts(secret) {
+    return {
         headers: {
             "Cookie": "token=" + secret,
         }
-    });
+    };
+}
+
+async function grabSecret(target, secret) {
+    let pubkey_request = await fetch(DUCCHAT_API + "userPublicKey?username=" + encodeURIComponent(target), fetchOpts(secret));
+    pubkey_request = await pubkey_request.text();
+    let secret_sendRec = await fetch(DUCCHAT_API + "sharedSecret?username=" + encodeURIComponent(target), fetchOpts(secret));
+    try {
+        secret_sendRec = await secret_sendRec.text();
+        secret_sendRec = crypto.privateDecrypt({
+            key: fs.readFileSync(__dirname + "/KEEP_SECRET.key"),
+            padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+            oaepHash: 'sha256'
+        }, Buffer.from(secret_sendRec, "base64")).toString();
+    } catch {
+        let newSharedSecret = crypto.randomBytes(64);
+        let sharedSecretMe = crypto.publicEncrypt({
+            key: fs.readFileSync(__dirname + "/SEND_TO_SERVER.key"),
+            padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+            oaepHash: 'sha256'
+        }, newSharedSecret).toString("base64");
+        let sharedSecretReceiver = crypto.publicEncrypt({
+            key: pubkey_request,
+            padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+            oaepHash: 'sha256'
+        }, newSharedSecret).toString("base64");
+        await fetch(DUCCHAT_API + "sharedSecret?username=" + encodeURIComponent(target) + "&newSecretMy=" + encodeURIComponent(sharedSecretMe) + "&newSecretReceiver=" + encodeURIComponent(sharedSecretReceiver), fetchOpts(secret));
+        secret_sendRec = newSharedSecret;
+    }
+    return secret_sendRec;
 }
