@@ -30,19 +30,13 @@ app.set('view engine', 'jsembeds');
 
 const user = {
 	getUserByPubkey: function (pubk) {
-		for (let user in this.db)
-			if (this.db[user].pubkey == pubk) return {
-				username: user,
-				object: this.db[user]
-			};
+		const username = Object.keys(this.db).find(user => this.db[user].pubkey == pubk);
+		if (username) return { username: username, object: this.db[username] };
 		return null;
 	},
 	getUserBySecret: function (secr) {
-		for (let user in this.db)
-			if (this.db[user].secret == secr) return {
-				username: user,
-				object: this.db[user]
-			};
+		const username = Object.keys(this.db).find(user => this.db[user].secret == secr);
+		if (username) return { username: username, object: this.db[username] };
 		return null;
 	},
 	getUserByName: (username) => user.db[username],
@@ -124,6 +118,7 @@ app.post("/imagination/register", function (req, res) {
 	if (!req.body.username) return res.status(400).send("Bad request!");
 
 	if (user.getUserByName(req.body.username)) return res.status(400).send("That user already exists! Try another one.");
+	if (user.getUserByPubkey(req.body.pubkey)) return res.status(400).send("That public key is already taken! Try another one.");
 	if (req.body.username == "system") return res.status(400).send("You attempted to impersonate the system user. You can't do that!");
 	try {
 		user.setUser(req.body.username, {
@@ -354,6 +349,7 @@ app.get("/manageAccount/changeKeypair", RequiredUserMiddleware, function (req, r
 	if (!tempSecTok.hasOwnProperty(req.query.security_token)) return res.redirect("/manageAccount");
 	if (tempSecTok[req.query.security_token] != req.user.username) return res.redirect("/manageAccount");
 	if (!req.body.pubkey) return res.status(400).send("Bad request!");
+	if (user.getUserByPubkey(req.body.pubkey)) return res.status(400).send("That public key is already taken! Try another one.");
 
 	delete tempSecTok[req.query.security_token];
 	try {
