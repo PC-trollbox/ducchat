@@ -80,7 +80,7 @@
 				.replace(/</g, "&lt;")
 				.replace(/>/g, "&gt;")
 				.replace(/"/g, "&quot;")
-				.replaceAll("\n", "<br>");
+				.replace(/\n/g, "<br>");
 		}
 		const safe = htmlEscape(text);
 		return safe
@@ -98,8 +98,7 @@
 			.replace(/\\__/g, "__")
 			.replace(/\\~~/g, "~~")
 			.replace(/\\\\/g, "\\")
-			.replace(/\\`/g, "`")
-            .replace(/\n/g, "<br>");
+			.replace(/\\`/g, "`");
 	}
 
 	document.querySelectorAll("a").forEach(function (b) {
@@ -257,7 +256,7 @@
 				failedDecrypt = true;
 			}
 		try {
-			messageEl.innerHTML = await imagination.encryption.decryptAES(message.message, (new TextDecoder()).decode(shared_secret));
+			messageEl.innerHTML = await parseMarkdown(await imagination.encryption.decryptAES(message.message, (new TextDecoder()).decode(shared_secret)));
 		} catch {
 			messageEl.innerHTML = await parseMarkdown(String(message.message));
 			messageEl.innerHTML = messageEl.innerHTML + "<hr><em>Warning: The message may not be trusted because decryption failed.</em>";
