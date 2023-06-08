@@ -66,6 +66,7 @@
 	}
 	socket = io();
 	async function parseMarkdown(text) {
+		text = String(text);
 		for (let addon in addons)
 			if (addons[addon].runningIn?.includes("parseMessage")) try {
 				text = await new AsyncFunction(addons[addon].feature)("parseMessage", text);
@@ -249,6 +250,7 @@
 		if (message.sentBy != username) messageEl.classList.add("read");
 		else messageEl.classList.add("sent");
 		let failedDecrypt = false;
+		let timestamp = new Date(message.timestamp || 0).toISOString().split("T")[0] + " " + new Date(message.timestamp || 0).toISOString().split("T")[1].split(".")[0];
 		for (let addon in addons)
 			if (addons[addon].runningIn?.includes("decryptMessage")) try {
 				message.message = await new AsyncFunction(addons[addon].feature)("decryptMessage", message.message);
@@ -256,13 +258,13 @@
 				failedDecrypt = true;
 			}
 		try {
-			messageEl.innerHTML = await parseMarkdown(await imagination.encryption.decryptAES(message.message, (new TextDecoder()).decode(shared_secret)));
+			messageEl.innerHTML = await parseMarkdown(await imagination.encryption.decryptAES(message.message, (new TextDecoder()).decode(shared_secret))) + "<div class=\"message-features\">" + timestamp + "</div>";
 		} catch {
-			messageEl.innerHTML = await parseMarkdown(String(message.message));
-			messageEl.innerHTML = messageEl.innerHTML + "<hr><em>Warning: The message may not be trusted because decryption failed.</em>";
+			messageEl.innerHTML = await parseMarkdown(message.message);
+			messageEl.innerHTML = messageEl.innerHTML + "<div class=\"message-features\"><label title=\"Message is not encrypted. It may be insecure.\">🔓</label> " + timestamp + "</div>";
 		}
 		for (let addon in addons)
-			if (addons[addon].runningIn?.includes("decryptMessage")) messageEl.innerHTML = await parseMarkdown(message.message) + (failedDecrypt ? "<hr><em>Warning: The message may not be trusted because decryption using the addon failed.</em>" : "");
+			if (addons[addon].runningIn?.includes("decryptMessage")) messageEl.innerHTML = await parseMarkdown(message.message) + "<div class=\"message-features\"><label title=\"Addon used.\">🧩</label> " + (failedDecrypt ? "<label title=\"Message is not encrypted. It may be insecure.\">🔓</label> " : "") + timestamp + "</div>";
 		messagesContainer.appendChild(messageEl);
 		if (autoScroll) messagesContainer.scrollTop = messagesContainer.scrollTopMax || Number.MAX_SAFE_INTEGER;
 		if (runFriendChecking) await friendChecking();

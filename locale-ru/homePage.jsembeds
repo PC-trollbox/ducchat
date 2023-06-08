@@ -26,7 +26,9 @@
                 <div class="accessingContact" id="currentContact">DucChat</div>
             </div>
             <div class="messagesContainer" id="messagesContainer">
-                <div class="message read">Нажмите на контакт, чтобы начать общение.</div>
+                <div class="message read">
+                    Нажмите на контакт, чтобы начать общение.
+                </div>
             </div>
             <div class="inputContainer">
                 <textarea class="textareaInput" placeholder="Введите сообщение..." disabled id="textareaInput"></textarea>

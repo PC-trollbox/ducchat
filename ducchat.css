@@ -142,3 +142,8 @@ a {
     font-size: .5em;
     z-index: 1;
 }
+
+.message-features {
+    font-size: .5em;
+    text-align: right;
+}

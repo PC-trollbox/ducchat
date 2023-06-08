@@ -418,37 +418,25 @@ io.on("connection", async function (client) {
         if (!logon.object.friends.includes(messageData.username)) return client.emit("sendFail", "NOT_FRIENDS");
 		let remoteUser = await user.getUserByName(messageData.username);
         if (!remoteUser) return client.emit("sendFail", "USER_NOT_FOUND");
-        remoteUser.messages.push({
-            username: logon.username,
-            message: messageData.message,
-            sentBy: logon.username,
-            senderID: logon.object.uniqueSenderID,
-            locale: String(client.handshake.headers["accept-language"]).split(";")[0].split(",")[0].split("-")[0].split("_")[0].toLowerCase()
-        });
-        logon.object.messages.push({
-            username: messageData.username,
-            message: messageData.message,
-            sentBy: logon.username,
-            senderID: logon.object.uniqueSenderID,
-            locale: String(client.handshake.headers["accept-language"]).split(";")[0].split(",")[0].split("-")[0].split("_")[0].toLowerCase()
-        });
+		let remoteUserObj = {
+			username: logon.username,
+			message: messageData.message,
+			sentBy: logon.username,
+			senderID: logon.object.uniqueSenderID,
+			locale: String(client.handshake.headers["accept-language"]).split(";")[0].split(",")[0].split("-")[0].split("_")[0].toLowerCase(),
+			timestamp: Date.now()
+		};
+		let myUserObj = structuredClone(remoteUserObj);
+		myUserObj.username = messageData.username;
+
+
+        remoteUser.messages.push(remoteUserObj)
+        logon.object.messages.push(myUserObj);
         user.setUser(logon.username, logon.object);
         user.setUser(messageData.username, remoteUser);
         if (!socketsForUser[messageData.username]) socketsForUser[messageData.username] = [];
-        for (let thatClient of socketsForUser[messageData.username]) thatClient?.emit("newMessage", {
-                username: logon.username,
-                message: messageData.message,
-                sentBy: logon.username,
-                senderID: logon.object.uniqueSenderID,
-                locale: String(client.handshake.headers["accept-language"]).split(";")[0].split(",")[0].split("-")[0].split("_")[0].toLowerCase()
-            });
-        for (let thatClient of socketsForUser[logon.username]) thatClient?.emit("newMessage", {
-                username: messageData.username,
-                message: messageData.message,
-                sentBy: logon.username,
-                senderID: logon.object.uniqueSenderID,
-                locale: String(client.handshake.headers["accept-language"]).split(";")[0].split(",")[0].split("-")[0].split("_")[0].toLowerCase()
-            });
+        for (let thatClient of socketsForUser[messageData.username]) thatClient?.emit("newMessage", remoteUserObj);
+        for (let thatClient of socketsForUser[logon.username]) thatClient?.emit("newMessage", myUserObj);
 	});
     client.on("messagesFromHistory", async function(settingObj) {
         if (!settingObj) return client.disconnect();
