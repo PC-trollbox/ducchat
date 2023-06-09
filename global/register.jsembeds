@@ -8,14 +8,14 @@
         <link rel="stylesheet" href="ducchat.css"></link>
     </head>
     <body>
-        <h1>DucChat</h1>
+        <h1><img src="/DucChat.png" height=26 width=26></img> DucChat</h1>
         <hr>
         <b>You'll need to register.</b> If you already have an account, log in <a href="/">right here</a>. The registration process is powered by Imagination Security.
         <br>
         <br>
         Username: <input id="userName" placeholder="Input your username..." required></input>
         <br>
-        <button onclick="useImagination()" id="imaginationGenerator">Register with Imagination security</button>
+        <button onclick="useImagination()" id="imaginationGenerator">Register with Imagination Security</button>
 
         <div id="logon_message" hidden>
             <b>Hang on</b>, the registration is still processing. You'll know when it's ready: it'll make you download 2 files called KEEP_SECRET.key and SEND_TO_SERVER.key. Make sure you keep them.

@@ -8,7 +8,7 @@
         <link rel="stylesheet" href="ducchat.css"></link>
     </head>
     <body>
-        <h1>DucChat</h1>
+        <h1><img src="/DucChat.png" height=26 width=26></img> DucChat</h1>
         <hr>
         <h2>Managing account settings</h2>
         <h3>Invalidate account settings token <em>(go back to Chat)</em></h3>

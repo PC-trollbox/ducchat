@@ -104,50 +104,37 @@
 
 	document.querySelectorAll("a").forEach(function (b) {
 		if (b.href.endsWith("/logout")) return;
-		b.onclick = function me(e) {
+		b.addEventListener("click", function me(e) {
+			function hideUp(e) {
+				e.preventDefault();
+				e.stopImmediatePropagation();
+				seeingMessages.style.display = "";
+				settingShower.style.display = "none";
+			}
+			if (settingShower.style.display == "") return hideUp(e);
 			e.preventDefault();
 			e.stopImmediatePropagation();
 			seeingMessages.style.display = "none";
 			settingShower.style.display = "";
 			settingShower.src = b.href;
-			b.classList.add("active");
 			settingShower.onload = function () {
-				let linkHandler = function (a) {
-					a.onclick = function (ae) {
-						ae.preventDefault();
-						ae.stopImmediatePropagation();
-						seeingMessages.style.display = "";
-						settingShower.style.display = "none";
-						b.onclick = me;
-					}
-				};
+				let linkHandler = (a) => a.onclick = hideUp;
 				let backup = settingShower.contentWindow.onpagehide;
 				settingShower.contentWindow.onpagehide = null;
 				settingShower.contentWindow.document.querySelectorAll("a[href=\\/home]").forEach(linkHandler);
 				settingShower.contentWindow.document.querySelectorAll("a[href=\\/]").forEach(linkHandler);
 				settingShower.contentWindow.document.querySelectorAll("form[action=\\/manageAccount\\/goBackToChat]").forEach(function (c) {
-					c.onclick = function (ae) {
+					c.addEventListener("click", function (ae) {
 						backup({
 							preventDefault: () => {},
 							stopImmediatePropagation: () => {},
 							stopPropagation: () => {}
 						});
-						ae.preventDefault();
-						ae.stopImmediatePropagation();
-						seeingMessages.style.display = "";
-						settingShower.style.display = "none";
-						b.onclick = me;
-					}
+						hideUp(ae);
+					});
 				});
 			}
-			b.onclick = function (e) {
-				e.preventDefault();
-				e.stopImmediatePropagation();
-				seeingMessages.style.display = "";
-				settingShower.style.display = "none";
-				b.onclick = me;
-			}
-		}
+		});
 	});
 
 	socket.on("contacts", async function (contacts) {

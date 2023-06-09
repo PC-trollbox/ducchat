@@ -9,7 +9,7 @@
     </head>
     <body>
         <a href="/home">Back to Chat</a>
-        <h1>DucChat Addon Installation Page</h1>
+        <h1><img src="/DucChat.png" height=26 width=26></img> DucChat Addon Installation Page</h1>
         <button id="install_addons">Install addons</button> <button id="remove_addons">Remove addons</button>
         <br>
         <b>Addons:</b> <code id="addon_list"></code>

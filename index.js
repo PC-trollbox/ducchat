@@ -395,6 +395,9 @@ app.get("/api/sharedSecret", RequiredUserMiddleware, function(req, res) {
 	}
 });
 
+app.get("/DucChat.png", (req, res) => res.sendFile(__dirname + "/DucChat.png"));
+app.get("/favicon.ico", (req, res) => res.redirect("/DucChat.png"));
+
 io.on("connection", async function (client) {
 	function socketIOLogon(client) {
 		if (!client.handshake.headers.cookie || !cookie.parse(client.handshake.headers.cookie).token) {

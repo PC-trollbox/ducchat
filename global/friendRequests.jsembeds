@@ -9,7 +9,7 @@
     </head>
     <body>
         <a href="/home">Back to Chat</a>
-        <h1>DucChat</h1>
+        <h1><img src="/DucChat.png" height=26 width=26></img> DucChat</h1>
         <hr>
         <h2>Friend lists and requests</h2>
         <h3>Friends <em>(already existing)</em></h3>

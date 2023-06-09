@@ -8,7 +8,7 @@
         <link rel="stylesheet" href="ducchat.css"></link>
     </head>
     <body>
-        <h1>DucChat</h1>
+        <h1><img src="/DucChat.png" height=26 width=26></img> DucChat</h1>
         <hr>
         <b>Необходимо войти.</b> Если у вас нет учётной записи, зарегистрируйтесь <a href="/register">вот здесь</a>. Процесс входа происходит с Безопасностью Imagination.
         <br>
