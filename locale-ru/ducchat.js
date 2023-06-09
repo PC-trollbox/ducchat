@@ -237,7 +237,7 @@
 		if (message.sentBy != username) messageEl.classList.add("read");
 		else messageEl.classList.add("sent");
 		let failedDecrypt = false;
-		let timestamp = new Date(message.timestamp || 0).toLocaleDateString().split(" ")[0] + " " + new Date(message.timestamp || 0).toLocaleTimeString().split(" ")[0];
+		let timestamp = new Date(message.timestamp || 0).toISOString().split("T")[0] + " " + new Date(message.timestamp || 0).toISOString().split("T")[1].split(".")[0];
 		for (let addon in addons)
 			if (addons[addon].runningIn?.includes("decryptMessage")) try {
 				message.message = await new AsyncFunction(addons[addon].feature)("decryptMessage", message.message);
