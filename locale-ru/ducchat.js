@@ -85,10 +85,6 @@
 		}
 		const safe = htmlEscape(text);
 		return safe
-			.replace(/\[addon=([a-zA-Z0-9\. ]+)\]([a-zA-Z0-9\/=]+)\[\/addon\]/g, (full, addon_name, _1, _2, base64) => {
-				//if (backslash) return full;
-				return `<button onclick="eval(atob(${JSON.stringify(base64).replace(/"/g, "'")}))">Установить дополнение ${addon_name} (выполняет код JavaScript!)</button>`;
-			})
 			.replace(/([^\\]|^)\*\*(.+?[^\\])\*\*/gs, "$1<b>$2</b>")
 			.replace(/([^\\]|^)\*([^\*]+)\*/g, "$1<i>$2</i>")
 			.replace(/([^\\]|^)__([^\*]+)__/g, "$1<u>$2</u>")
@@ -173,6 +169,11 @@
 							pubkeys[contact] = new_receiver_pubkey;
 							localStorage.setItem("pubkeys_cache", JSON.stringify(pubkeys));
 							receiver_pubkey = new_receiver_pubkey;
+							let newSharedSecret = crypto.getRandomValues(new Uint8Array(64));
+							let sharedSecretMe = await imagination.encryption.encryptRSA(newSharedSecret, imports.publicKey);
+							let sharedSecretReceiver = await imagination.encryption.encryptRSA(newSharedSecret, receiver_pubkey);
+							await fetch("/api/sharedSecret?username=" + encodeURIComponent(contact) + "&newSecretMy=" + encodeURIComponent(sharedSecretMe) + "&newSecretReceiver=" + encodeURIComponent(sharedSecretReceiver));
+							shared_secret = newSharedSecret;
 						}
 					}
 				}
@@ -209,16 +210,17 @@
 				e.preventDefault();
 				e.stopImmediatePropagation();
 				e.stopPropagation();
-				let action = prompt("Выберите действие:\n[1] Очистить чат (очистит только на ВАШЕЙ стороне)\n[2] Удалить чат (работает только если вы больше не друзья)\n[3] Конфиденциальная очистка чата (очистит на обоих сторонах)\n[4] Переключить авто-прокрутку (сейчас " + (autoScroll ? "включена" : "выключена") + ")\n\nНапишите число или что-либо другое, чтобы отменить, затем нажмите Ввод.");
-				if (action == "1") {
-					await fetch("/api/clearChat?username=" + encodeURIComponent(contactEl.innerText));
-				} else if (action == "2") {
-					await fetch("/api/deleteChat?username=" + encodeURIComponent(contactEl.innerText));
-				} else if (action == "3") {
-					await fetch("/api/privacyClearChat?username=" + encodeURIComponent(contactEl.innerText));
-				} else if (action == "4") {
-					autoScroll = !autoScroll;
-				}
+				let action = prompt("Выберите действие:\n[1] Очистить чат (очистит только на ВАШЕЙ стороне)\n[2] Удалить чат (работает только если вы больше не друзья)\n[3] Конфиденциальная очистка чата (очистит на обоих сторонах)\n[4] Регенерировать общий секрет (выполняйте, когда меняется открытый ключ)\n[5] Переключить авто-прокрутку (сейчас " + (autoScroll ? "включена" : "выключена") + ")\n\nНапишите число или что-либо другое, чтобы отменить, затем нажмите Ввод.");
+				if (action == "1") await fetch("/api/clearChat?username=" + encodeURIComponent(contactEl.innerText));
+				else if (action == "2") await fetch("/api/deleteChat?username=" + encodeURIComponent(contactEl.innerText));
+				else if (action == "3") await fetch("/api/privacyClearChat?username=" + encodeURIComponent(contactEl.innerText));
+				else if (action == "4") {
+					let newSharedSecret = crypto.getRandomValues(new Uint8Array(64));
+                    let sharedSecretMe = await imagination.encryption.encryptRSA(newSharedSecret, imports.publicKey);
+                    let sharedSecretReceiver = await imagination.encryption.encryptRSA(newSharedSecret, receiver_pubkey);
+                    await fetch("/api/sharedSecret?username=" + encodeURIComponent(contact) + "&newSecretMy=" + encodeURIComponent(sharedSecretMe) + "&newSecretReceiver=" + encodeURIComponent(sharedSecretReceiver));
+					alert("Завершено. Чтобы начать общение, снова нажмите на чат.");
+				} else if (action == "5") autoScroll = !autoScroll;
 			})
 			if (matchTest == contactEl.innerText) contactEl.classList.add("active");
 			contactMenu.appendChild(contactEl);

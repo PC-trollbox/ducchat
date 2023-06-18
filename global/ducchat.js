@@ -85,10 +85,6 @@
 		}
 		const safe = htmlEscape(text);
 		return safe
-			.replace(/\[addon=([a-zA-Z0-9\. ]+)\]([a-zA-Z0-9\/=]+)\[\/addon\]/g, (full, addon_name, _1, _2, base64) => {
-				//if (backslash) return full;
-				return `<button onclick="eval(atob(${JSON.stringify(base64).replace(/"/g, "'")}))">Установить дополнение ${addon_name} (выполняет код JavaScript!)</button>`;
-			})
 			.replace(/([^\\]|^)\*\*(.+?[^\\])\*\*/gs, "$1<b>$2</b>")
 			.replace(/([^\\]|^)\*([^\*]+)\*/g, "$1<i>$2</i>")
 			.replace(/([^\\]|^)__([^\*]+)__/g, "$1<u>$2</u>")
@@ -173,6 +169,11 @@
 							pubkeys[contact] = new_receiver_pubkey;
 							localStorage.setItem("pubkeys_cache", JSON.stringify(pubkeys));
 							receiver_pubkey = new_receiver_pubkey;
+							let newSharedSecret = crypto.getRandomValues(new Uint8Array(64));
+							let sharedSecretMe = await imagination.encryption.encryptRSA(newSharedSecret, imports.publicKey);
+							let sharedSecretReceiver = await imagination.encryption.encryptRSA(newSharedSecret, receiver_pubkey);
+							await fetch("/api/sharedSecret?username=" + encodeURIComponent(contact) + "&newSecretMy=" + encodeURIComponent(sharedSecretMe) + "&newSecretReceiver=" + encodeURIComponent(sharedSecretReceiver));
+							shared_secret = newSharedSecret;
 						}
 					}
 				}
@@ -209,16 +210,17 @@
 				e.preventDefault();
 				e.stopImmediatePropagation();
 				e.stopPropagation();
-				let action = prompt("Select action:\n[1] Clear chat (will clear it on YOUR side only)\n[2] Delete chat (only works if you are no longer friends)\n[3] Privacy chat clean (erases from both sides)\n[4] Toggle auto-scroll (currently is " + (autoScroll ? "on" : "off") + ")\n\nInput the number or anything else to cancel, then press Enter.");
-				if (action == "1") {
-					await fetch("/api/clearChat?username=" + encodeURIComponent(contactEl.innerText));
-				} else if (action == "2") {
-					await fetch("/api/deleteChat?username=" + encodeURIComponent(contactEl.innerText));
-				} else if (action == "3") {
-					await fetch("/api/privacyClearChat?username=" + encodeURIComponent(contactEl.innerText));
-				} else if (action == "4") {
-					autoScroll = !autoScroll;
-				}
+				let action = prompt("Select action:\n[1] Clear chat (will clear it on YOUR side only)\n[2] Delete chat (only works if you are no longer friends)\n[3] Privacy chat clean (erases from both sides)\n[4] Regenerate shared secret (run whenever the public key changes)\n[5] Toggle auto-scroll (currently is " + (autoScroll ? "on" : "off") + ")\n\nInput the number or anything else to cancel, then press Enter.");
+				if (action == "1") await fetch("/api/clearChat?username=" + encodeURIComponent(contactEl.innerText));
+				else if (action == "2") await fetch("/api/deleteChat?username=" + encodeURIComponent(contactEl.innerText));
+				else if (action == "3") await fetch("/api/privacyClearChat?username=" + encodeURIComponent(contactEl.innerText));
+				else if (action == "4") {
+					let newSharedSecret = crypto.getRandomValues(new Uint8Array(64));
+                    let sharedSecretMe = await imagination.encryption.encryptRSA(newSharedSecret, imports.publicKey);
+                    let sharedSecretReceiver = await imagination.encryption.encryptRSA(newSharedSecret, receiver_pubkey);
+                    await fetch("/api/sharedSecret?username=" + encodeURIComponent(contact) + "&newSecretMy=" + encodeURIComponent(sharedSecretMe) + "&newSecretReceiver=" + encodeURIComponent(sharedSecretReceiver));
+					alert("Completed. Please click again on the chat to start chatting.");
+				} else if (action == "5") autoScroll = !autoScroll;
 			})
 			if (matchTest == contactEl.innerText) contactEl.classList.add("active");
 			contactMenu.appendChild(contactEl);
