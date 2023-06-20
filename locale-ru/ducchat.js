@@ -16,6 +16,7 @@
 	let commitLbl = document.getElementById("commit");
 	let seeingMessages = document.getElementById("seeingMessages");
 	let settingShower = document.getElementById("settingShower");
+	let contextMenu = document.getElementById("contextMenu");
 	let username = await fetch("/api/username");
 	username = await username.text();
 	contactMenu.id = "";
@@ -26,6 +27,7 @@
 	commitLbl.id = "";
 	seeingMessages.id = "";
 	settingShower.id = "";
+	contextMenu.id = "";
 	textareaInput.value = "Пользователь не находится в вашем списке друзей. Вы не можете с ним связаться.";
 	textareaInput.notFriendDisabled = true;
 	textareaInput.disabled = true;
@@ -210,18 +212,52 @@
 				e.preventDefault();
 				e.stopImmediatePropagation();
 				e.stopPropagation();
-				let action = prompt("Выберите действие:\n[1] Очистить чат (очистит только на ВАШЕЙ стороне)\n[2] Удалить чат (работает только если вы больше не друзья)\n[3] Конфиденциальная очистка чата (очистит на обоих сторонах)\n[4] Регенерировать общий секрет (выполняйте, когда меняется открытый ключ)\n[5] Переключить авто-прокрутку (сейчас " + (autoScroll ? "включена" : "выключена") + ")\n\nНапишите число или что-либо другое, чтобы отменить, затем нажмите Ввод.");
-				if (action == "1") await fetch("/api/clearChat?username=" + encodeURIComponent(contactEl.innerText));
-				else if (action == "2") await fetch("/api/deleteChat?username=" + encodeURIComponent(contactEl.innerText));
-				else if (action == "3") await fetch("/api/privacyClearChat?username=" + encodeURIComponent(contactEl.innerText));
-				else if (action == "4") {
+
+				contextMenu.style.top = e.clientY + "px";
+				contextMenu.style.left = e.clientX + "px";
+				contextMenu.hidden = false;
+				Array.prototype.map.call(contextMenu.children, (a) => a).forEach(a => a.remove());
+
+				let usernameLabel = document.createElement("button");
+				let clearChatBtn = document.createElement("button");
+				let deleteChatBtn = document.createElement("button");
+				let privacyClearChatBtn = document.createElement("button");
+				let regenerateSharedSecretBtn = document.createElement("button");
+				let autoScrollBtn = document.createElement("button");
+				usernameLabel.className = "contextMenuItem";
+				clearChatBtn.className = "contextMenuItem";
+				deleteChatBtn.className = "contextMenuItem";
+				privacyClearChatBtn.className = "contextMenuItem";
+				regenerateSharedSecretBtn.className = "contextMenuItem";
+				autoScrollBtn.className = "contextMenuItem";
+				usernameLabel.innerText = "Управление " + contactEl.innerText;
+				usernameLabel.innerHTML = "<em>" + usernameLabel.innerHTML + "</em>";
+				clearChatBtn.innerText = "Очистить чат";
+				clearChatBtn.title = "Очистка чата очистит его только на вашей стороне."
+				deleteChatBtn.innerText = "Удалить чат";
+				deleteChatBtn.title = "Удалять чат можно, только если вы не друзья.";
+				privacyClearChatBtn.innerText = "Конфиденциальная очистка чата";
+				privacyClearChatBtn.title = "Конфиденциальная очистка чата очистит его на обоих сторонах. Эту очистку нужно использовать только в целях конфиденциальности.";
+				regenerateSharedSecretBtn.innerText = "Обновить общий секрет";
+				regenerateSharedSecretBtn.title = "Общий секрет нужно обновлять при смене пары ключей.";
+				autoScrollBtn.innerText = (autoScroll ? "Выключить" : "Включить") + " авто-прокрутку";
+				autoScrollBtn.title = "Авто-прокрутка автоматически прокручивает чат вниз при получении нового сообщения.";
+				usernameLabel.disabled = true;
+
+				contextMenu.append(usernameLabel, clearChatBtn, deleteChatBtn, privacyClearChatBtn, regenerateSharedSecretBtn, autoScrollBtn);
+
+				clearChatBtn.addEventListener("click", async () => await fetch("/api/clearChat?username=" + encodeURIComponent(contactEl.innerText)));
+				deleteChatBtn.addEventListener("click", async () => await fetch("/api/deleteChat?username=" + encodeURIComponent(contactEl.innerText)));
+				privacyClearChatBtn.addEventListener("click", async () => await fetch("/api/privacyClearChat?username=" + encodeURIComponent(contactEl.innerText)));
+				regenerateSharedSecretBtn.addEventListener("click", async function() {
 					let newSharedSecret = crypto.getRandomValues(new Uint8Array(64));
                     let sharedSecretMe = await imagination.encryption.encryptRSA(newSharedSecret, imports.publicKey);
                     let sharedSecretReceiver = await imagination.encryption.encryptRSA(newSharedSecret, receiver_pubkey);
                     await fetch("/api/sharedSecret?username=" + encodeURIComponent(contact) + "&newSecretMy=" + encodeURIComponent(sharedSecretMe) + "&newSecretReceiver=" + encodeURIComponent(sharedSecretReceiver));
-					alert("Завершено. Чтобы начать общение, снова нажмите на чат.");
-				} else if (action == "5") autoScroll = !autoScroll;
-			})
+					alert("Завершено. Cнова нажмите на чат, чтобы завершить обновление.");
+				});
+				autoScrollBtn.addEventListener("click", async () => autoScroll = !autoScroll);
+			});
 			if (matchTest == contactEl.innerText) contactEl.classList.add("active");
 			contactMenu.appendChild(contactEl);
 		}
@@ -231,6 +267,10 @@
 			} catch (e) {
 				alert("Дополнение \"" + addon + "\" (версия " + addons[addon].release + ") не удалось запустить:\n" + e.toString() + "\n" + e.stack + "\nЗапустите менеджер дополнений и удалите это дополнение или примените обновление.");
 			}
+	});
+
+	window.addEventListener("click", function() {
+		if (!contextMenu.hidden) contextMenu.hidden = true;
 	});
 
 	async function handleMessage(message, runFriendChecking = true) {

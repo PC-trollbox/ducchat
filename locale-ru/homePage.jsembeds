@@ -5,8 +5,7 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>DucChat - Чат</title>
-        <link rel="stylesheet" href="ducchat.css">
-        </link>
+        <link rel="stylesheet" href="ducchat.css"></link>
     </head>
 
     <body>
@@ -26,9 +25,7 @@
                 <div class="accessingContact" id="currentContact">DucChat</div>
             </div>
             <div class="messagesContainer" id="messagesContainer">
-                <div class="message read">
-                    Нажмите на контакт, чтобы начать общение.
-                </div>
+                <div class="message read">Нажмите на контакт, чтобы начать общение.</div>
             </div>
             <div class="inputContainer">
                 <textarea class="textareaInput" placeholder="Введите сообщение..." disabled id="textareaInput"></textarea>
@@ -36,6 +33,7 @@
             </div>
         </div>
         <iframe class="messages" id="settingShower" style="display: none;"></iframe>
+        <div class="contextMenu" hidden id="contextMenu"></div>
 
         <script src="imagination/Imagination.js"></script>
         <script src="imagination/gui.js"></script>

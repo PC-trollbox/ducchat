@@ -5,8 +5,7 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>DucChat - Chat</title>
-        <link rel="stylesheet" href="ducchat.css">
-        </link>
+        <link rel="stylesheet" href="ducchat.css"></link>
     </head>
 
     <body>
@@ -34,6 +33,7 @@
             </div>
         </div>
         <iframe class="messages" id="settingShower" style="display: none;"></iframe>
+        <div class="contextMenu" hidden id="contextMenu"></div>
 
         <script src="imagination/Imagination.js"></script>
         <script src="imagination/gui.js"></script>

@@ -23,6 +23,9 @@
         <h3>Применить пароль друга <em>(точный друг)</em></h3>
         <input id="friendTokenInput" type="text" placeholder="Пароль друга" maxlength="8"> <button id="applyBtn">Применить</button>
         <hr>
+        <h3>Отклонить все подсказки друзей</h3>
+        <button id="rejectAllBtn">Отклонить</button>
+        <hr>
         <h3>Подсказки <em>(пароли друга, вводите выше)</em></h3>
         <div id="friendSuggestions"></div>
 
@@ -35,6 +38,7 @@
                 let friendTokenInput = document.getElementById("friendTokenInput");
                 let applyBtn = document.getElementById("applyBtn");
                 let friendSuggestions = document.getElementById("friendSuggestions");
+                let rejectAllBtn = document.getElementById("rejectAllBtn");
                 existingFriends.id = "";
                 usernameField.id = "";
                 requestBtn.id = "";
@@ -42,6 +46,7 @@
                 friendTokenInput.id = "";
                 applyBtn.id = "";
                 friendSuggestions.id = "";
+                rejectAllBtn.id = "";
 
                 let existingFriendsList = await fetch("/api/friends");
                 existingFriendsList = await existingFriendsList.json();
@@ -88,6 +93,12 @@
                     suggestedFriendLbl.innerText = friend + " (от " + suggestedFriendsList[friend].from + ")";
                     friendSuggestions.appendChild(suggestedFriendLbl);
                     friendSuggestions.appendChild(brEl);
+                }
+
+                rejectAllBtn.onclick = async function() {
+                    let result = await fetch("/api/rejectAllFriends");
+                    if (result.ok) location.replace(location.href)
+                    else alert("Ошибка:\n" + await result.text());
                 }
             })();
         </script>

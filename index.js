@@ -161,6 +161,14 @@ app.get("/api/addToFriends/", RequiredUserMiddleware, function (req, res) {
 		if (!req.query.username) return res.status(400).send("Bad request!");
 		if (!user.getUserByName(req.query.username)) return res.status(404).send("User not found!");
 		if (req.query.username == req.user.username) return res.status(400).send("Bad request! You can't add yourself as a friend.");
+		if (req.user.object.friends.includes(req.query.username)) return res.status(400).send("Bad request! This friend was already established.");
+		for (let ft in friendTokens)
+			if (friendTokens[ft].to == req.query.username && friendTokens[ft].from == req.user.username)
+				return res.json({
+					friendQueued: true,
+					friendToken: ft,
+					friendAdded: false
+				});
 		let token = crypto.randomBytes(4).toString("hex");
 		friendTokens[token] = {
 			from: req.user.username,
@@ -394,6 +402,11 @@ app.get("/api/sharedSecret", RequiredUserMiddleware, function(req, res) {
 		res.send("OK");
 	}
 });
+
+app.get("/api/rejectAllFriends", RequiredUserMiddleware, function (req, res) {
+	for (let ft in friendTokens) if (friendTokens[ft].to == req.user.username) delete friendTokens[ft];
+	res.send("OK");
+})
 
 app.get("/DucChat.png", (req, res) => res.sendFile(__dirname + "/DucChat.png"));
 app.get("/favicon.ico", (req, res) => res.redirect("/DucChat.png"));

@@ -16,6 +16,7 @@
 	let commitLbl = document.getElementById("commit");
 	let seeingMessages = document.getElementById("seeingMessages");
 	let settingShower = document.getElementById("settingShower");
+	let contextMenu = document.getElementById("contextMenu");
 	let username = await fetch("/api/username");
 	username = await username.text();
 	contactMenu.id = "";
@@ -26,6 +27,7 @@
 	commitLbl.id = "";
 	seeingMessages.id = "";
 	settingShower.id = "";
+	contextMenu.id = "";
 	textareaInput.value = "This user is not in your friend list. You can't communicate with them.";
 	textareaInput.notFriendDisabled = true;
 	textareaInput.disabled = true;
@@ -210,17 +212,51 @@
 				e.preventDefault();
 				e.stopImmediatePropagation();
 				e.stopPropagation();
-				let action = prompt("Select action:\n[1] Clear chat (will clear it on YOUR side only)\n[2] Delete chat (only works if you are no longer friends)\n[3] Privacy chat clean (erases from both sides)\n[4] Regenerate shared secret (run whenever the public key changes)\n[5] Toggle auto-scroll (currently is " + (autoScroll ? "on" : "off") + ")\n\nInput the number or anything else to cancel, then press Enter.");
-				if (action == "1") await fetch("/api/clearChat?username=" + encodeURIComponent(contactEl.innerText));
-				else if (action == "2") await fetch("/api/deleteChat?username=" + encodeURIComponent(contactEl.innerText));
-				else if (action == "3") await fetch("/api/privacyClearChat?username=" + encodeURIComponent(contactEl.innerText));
-				else if (action == "4") {
+
+				contextMenu.style.top = e.clientY + "px";
+				contextMenu.style.left = e.clientX + "px";
+				contextMenu.hidden = false;
+				Array.prototype.map.call(contextMenu.children, (a) => a).forEach(a => a.remove());
+
+				let usernameLabel = document.createElement("button");
+				let clearChatBtn = document.createElement("button");
+				let deleteChatBtn = document.createElement("button");
+				let privacyClearChatBtn = document.createElement("button");
+				let regenerateSharedSecretBtn = document.createElement("button");
+				let autoScrollBtn = document.createElement("button");
+				usernameLabel.className = "contextMenuItem";
+				clearChatBtn.className = "contextMenuItem";
+				deleteChatBtn.className = "contextMenuItem";
+				privacyClearChatBtn.className = "contextMenuItem";
+				regenerateSharedSecretBtn.className = "contextMenuItem";
+				autoScrollBtn.className = "contextMenuItem";
+				usernameLabel.innerText = "Managing " + contactEl.innerText;
+				usernameLabel.innerHTML = "<em>" + usernameLabel.innerHTML + "</em>";
+				clearChatBtn.innerText = "Clear chat";
+				clearChatBtn.title = "Clearing the chat will clear it on your side only.";
+				deleteChatBtn.innerText = "Delete chat";
+				deleteChatBtn.title = "You can only delete the chat if you're no longer friends.";
+				privacyClearChatBtn.innerText = "Privacy clear chat";
+				privacyClearChatBtn.title = "Privacy clear chat will clear the chat on both sides. Only use this for privacy reasons.";
+				regenerateSharedSecretBtn.innerText = "Regenerate shared secret";
+				regenerateSharedSecretBtn.title = "The shared secret needs to be refreshed after changing the keypair.";
+				autoScrollBtn.innerText = "Turn auto-scroll " + (autoScroll ? "off" : "on");
+				autoScrollBtn.title = "Auto-scroll automatically scrolls the chat down when you receive a new message.";
+				usernameLabel.disabled = true;
+
+				contextMenu.append(usernameLabel, clearChatBtn, deleteChatBtn, privacyClearChatBtn, regenerateSharedSecretBtn, autoScrollBtn);
+
+				clearChatBtn.addEventListener("click", async () => await fetch("/api/clearChat?username=" + encodeURIComponent(contactEl.innerText)));
+				deleteChatBtn.addEventListener("click", async () => await fetch("/api/deleteChat?username=" + encodeURIComponent(contactEl.innerText)));
+				privacyClearChatBtn.addEventListener("click", async () => await fetch("/api/privacyClearChat?username=" + encodeURIComponent(contactEl.innerText)));
+				regenerateSharedSecretBtn.addEventListener("click", async function() {
 					let newSharedSecret = crypto.getRandomValues(new Uint8Array(64));
                     let sharedSecretMe = await imagination.encryption.encryptRSA(newSharedSecret, imports.publicKey);
                     let sharedSecretReceiver = await imagination.encryption.encryptRSA(newSharedSecret, receiver_pubkey);
                     await fetch("/api/sharedSecret?username=" + encodeURIComponent(contact) + "&newSecretMy=" + encodeURIComponent(sharedSecretMe) + "&newSecretReceiver=" + encodeURIComponent(sharedSecretReceiver));
-					alert("Completed. Please click again on the chat to start chatting.");
-				} else if (action == "5") autoScroll = !autoScroll;
+					alert("Finished. To complete the refresh, please click on the chat again.");
+				});
+				autoScrollBtn.addEventListener("click", async () => autoScroll = !autoScroll);
 			})
 			if (matchTest == contactEl.innerText) contactEl.classList.add("active");
 			contactMenu.appendChild(contactEl);
