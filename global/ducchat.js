@@ -269,6 +269,10 @@
 			}
 	});
 
+	window.addEventListener("click", function() {
+		if (!contextMenu.hidden) contextMenu.hidden = true;
+	});
+
 	async function handleMessage(message, runFriendChecking = true) {
 		let messageEl = document.createElement("div");
 		messageEl.className = "message";
