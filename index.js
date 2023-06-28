@@ -318,14 +318,12 @@ app.get("/manageAccount/changeKeypair", RequiredUserMiddleware, function (req, r
 	if (!req.query.security_token) return res.redirect("/manageAccount");
 	if (!tempSecTok.hasOwnProperty(req.query.security_token)) return res.redirect("/manageAccount");
 	if (tempSecTok[req.query.security_token] != req.user.username) return res.redirect("/manageAccount");
-	if (!req.body.pubkey) return res.status(400).send("Bad request!");
-	if (user.getUserByPubkey(req.body.pubkey)) return res.status(400).send("That public key is already taken! Try another one.");
+	if (!req.query.pubkey) return res.status(400).send("Bad request!");
+	if (user.getUserByPubkey(req.query.pubkey)) return res.status(400).send("That public key is already taken! Try another one.");
 
 	delete tempSecTok[req.query.security_token];
 	try {
 		req.user.object.pubkey = req.query.pubkey;
-		req.user.object.recentlyChatted = req.user.object.recentlyChatted.filter((a) => a != "system");
-		req.user.object.recentlyChatted.unshift("system");
 		req.user.object.secret = crypto.randomBytes(64).toString("hex");
 		user.setUser(req.user.username, req.user.object);
 	} catch {
