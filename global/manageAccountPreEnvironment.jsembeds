@@ -32,7 +32,7 @@
                 try {
                     imports = await imagination.encryption.importKeyPair(pubkey_data, privkey_data);
                 } catch { return location.href = "/home"; }
-                let rec_tok = await fetch("/manageAccountSecurityToken?pubkey=" + encodeURIComponent(pubkey_data));
+                let rec_tok = await fetch("/manageAccountSecurityToken");
                 rec_tok = await rec_tok.text();
                 try {
                     rec_tok = await imagination.encryption.decryptRSA(rec_tok, imports.privateKey);
