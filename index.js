@@ -292,12 +292,11 @@ app.get("/manageAccount", RequiredUserMiddleware, function (req, res) {
 });
 
 app.get("/manageAccountSecurityToken", RequiredUserMiddleware, function (req, res) {
-	if (!user.getUserByPubkey(req.query.pubkey)) return res.status(401).send("Invalid public key: unregistered or blocked user?");
 	try {
 		let tst = crypto.randomBytes(64).toString("hex");
 		tempSecTok[tst] = req.user.username;
 		res.send(crypto.publicEncrypt({
-			key: req.query.pubkey,
+			key: req.user.object.pubkey,
 			padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
 			oaepHash: 'sha256'
 		}, Buffer.from(tst, "utf-8")).toString("base64"));
